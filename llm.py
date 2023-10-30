@@ -11,19 +11,25 @@ Original file is located at
 # 1 環境の準備
 """
 
-!pip install transformers[ja,torch] datasets matplotlib japanize-matplotlib
-
 from transformers.trainer_utils import set_seed
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import numpy as np
+import pandas as pd
+from transformers import Trainer
+from transformers import AutoModelForSequenceClassification
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from pprint import pprint
+from datasets import Dataset, ClassLabel
+from datasets import load_dataset
+import pandas as pd
+from typing import Union
+from transformers import BatchEncoding
 
 # 乱数シードを42に固定
 set_seed(42)
+print("乱数シード設定完了")
 
 """# 2 データセットの準備"""
-
-from pprint import pprint
-from datasets import load_dataset
-import pandas as pd
-from datasets import Dataset, ClassLabel
 
 # Hugging Face Hub上のllm-book/wrime-sentimentのリポジトリからデータを読み込む
 # original_train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
@@ -36,18 +42,17 @@ from datasets import Dataset, ClassLabel
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
 # CSVファイルからデータを読み込む
-original_train_df = pd.read_csv('train.csv')
-valid_df = pd.read_csv('validation.csv')
+original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(original_train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
 # pprintで見やすく表示する
 pprint(train_dataset[0])
 
+print("")
+
 """# 3. トークン化"""
-
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
 
 # モデル名を指定してトークナイザを読み込む
 model_name = "cl-tohoku/bert-base-japanese-v3"
@@ -61,8 +66,6 @@ tokens = tokenizer.tokenize("これはテストです。")
 print(tokens)
 
 # データのトークン化
-from typing import Union
-from transformers import BatchEncoding
 
 def preprocess_text_classification(
     example: dict[str, str | int]
@@ -92,8 +95,6 @@ data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 # ミニバッチ結果の確認
 batch_inputs = data_collator(encoded_train_dataset[0:4])
 pprint({name: tensor.size() for name, tensor in batch_inputs.items()})
-
-
 
 """# 5 モデルの準備"""
 
@@ -139,12 +140,6 @@ training_args = TrainingArguments(
     fp16=True,  # 自動混合精度演算の有効化
 )
 
-import numpy as np
-import pandas as pd
-from transformers import Trainer
-from transformers import AutoModelForSequenceClassification
-from sklearn.metrics import accuracy_score, precision_score, recall_score
-
 def compute_accuracy(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
     predictions, labels = eval_pred
     # predictionsは各ラベルについてのスコア
@@ -167,11 +162,8 @@ trainer = Trainer(
 )
 trainer.train()
 
-# # ファインチューニング済みモデルを保存
-model.save_pretrained("fine_tuned_model_directory")
-
-# # ファインチューニング済みモデルを保存
-model.save_pretrained("fine_tuned_model_directory")
+# # # ファインチューニング済みモデルを保存
+# model.save_pretrained("fine_tuned_model_directory")
 
 # 予測結果の取得
 predictions = trainer.predict(encoded_train_dataset)
@@ -208,8 +200,8 @@ incorrect_data_df = incorrect_data_df[["label","sentence"]]
 # incorrect_data_df = incorrect_data_df.rename(columns={"index": "id"})
 
 # "train_correct.csv"と"train_false.csv"に格納
-correct_data_df.to_csv("train_truecase.csv", index=False)
-incorrect_data_df.to_csv("train_falsecase.csv", index=False)
+correct_data_df.to_csv("/content/llm-class/dataset/train_truecase.csv", index=False)
+incorrect_data_df.to_csv("/content/llm-class/dataset/train_falsecase.csv", index=False)
 
 """# 7 精度検証"""
 
@@ -217,99 +209,3 @@ incorrect_data_df.to_csv("train_falsecase.csv", index=False)
 eval_metrics = trainer.evaluate(encoded_valid_dataset)
 pprint(eval_metrics)
 
-
-
-"""# （参考） データセット統計の可視化"""
-
-from collections import Counter
-import japanize_matplotlib
-import matplotlib.pyplot as plt
-from datasets import Dataset
-from tqdm import tqdm
-
-plt.rcParams["font.size"] = 12  # 文字サイズを大きくする
-
-def visualize_text_length(dataset: Dataset):
-    """データセット中のテキストのトークン数の分布をグラフとして描画"""
-    # データセット中のテキストの長さを数える
-    length_counter = Counter()
-    for data in tqdm(dataset):
-        length = len(tokenizer.tokenize(data["sentence"]))
-        length_counter[length] += 1
-    # length_counterの値から棒グラフを描画する
-    # グラフのサイズを設定
-    plt.figure(figsize=(4, 3))  # 幅 8 インチ、高さ 6 インチ
-
-    plt.bar(length_counter.keys(), length_counter.values(), width=1.0)
-    plt.xlabel("トークン数")
-    plt.ylabel("事例数")
-    plt.show()
-
-visualize_text_length(train_dataset)
-visualize_text_length(valid_dataset)
-
-from collections import Counter
-import matplotlib.pyplot as plt
-
-def visualize_labels(dataset):
-    """データセット中のラベル分布をグラフとして描画"""
-    # データセット中のラベルの数を数える
-    label_counter = Counter()
-    for data in dataset:
-        label_id = data["label"]
-        label_counter[label_id] += 1
-
-    # ラベルIDをラベル名に変換するための辞書
-    label_id_to_name = {0: "ラベル0", 1: "ラベル1"}
-
-    # グラフのサイズを設定
-    plt.figure(figsize=(4, 3))  # 幅 8 インチ、高さ 6 インチ
-
-    # label_counterを棒グラフとして描画する
-    label_names = [label_id_to_name[label_id] for label_id in label_counter.keys()]
-    label_counts = list(label_counter.values())
-    plt.bar(label_names, label_counts, width=0.6)
-    plt.xlabel("ラベル")
-    plt.ylabel("事例数")
-    plt.show()
-
-visualize_labels(train_dataset)
-visualize_labels(valid_dataset)
-
-import pandas as pd
-from datasets import load_dataset
-
-# データセットを読み込む
-original_train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
-valid_dataset = load_dataset("llm-book/wrime-sentiment", split="validation")
-
-# データセットをPandas DataFrameに変換
-original_train_df = pd.DataFrame(original_train_dataset)
-valid_df = pd.DataFrame(valid_dataset)
-
-#original_train_df[['sentence', 'label']].head(30)
-
-#original_train_df[['sentence', 'label']].head(30)
-print(len(original_train_df))
-print(len(valid_df))
-
-import pandas as pd
-from datasets import load_dataset
-
-# データセットを読み込む
-original_train_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja", split="train")
-valid_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja", split="validation")
-
-# データセットをPandas DataFrameに変換
-original_train_df = pd.DataFrame(original_train_dataset)
-valid_df = pd.DataFrame(valid_dataset)
-
-#original_train_df[['sentence', 'label']].head(30)
-print(len(original_train_df))
-print(len(valid_df))
-
-original_train_df = pd.read_csv('train.csv')
-valid_df = pd.read_csv('validation.csv')
-
-print(len(original_train_df))
-print(len(valid_df))
