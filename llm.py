@@ -62,7 +62,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 print(type(tokenizer).__name__)
 
 # テキストのトークン化
-tokens = tokenizer.tokenize("これはテストです。")
+tokens = tokenizer.tokenize(train_dataset[0]['sentence'])
 print(tokens)
 
 # データのトークン化
@@ -205,7 +205,14 @@ incorrect_data_df.to_csv("/content/llm-class/dataset/train_falsecase.csv", index
 
 """# 7 精度検証"""
 
+print("■評価結果")
 # 検証セットでモデルを評価
 eval_metrics = trainer.evaluate(encoded_valid_dataset)
-pprint(eval_metrics)
+accuracy = eval_metrics['eval_accuracy']
+precision = eval_metrics['eval_precision']
+recall = eval_metrics['eval_recall']
+
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 

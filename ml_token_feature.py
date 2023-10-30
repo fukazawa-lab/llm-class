@@ -9,8 +9,6 @@ Original file is located at
 # トークンを特徴量にした機械学習による文書分類
 """
 
-!pip install transformers[ja,torch] datasets matplotlib japanize-matplotlib
-
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier  # Random Forestのクラス
@@ -27,8 +25,8 @@ from sklearn.metrics import precision_score, recall_score
 # train_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="train")
 # valid_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="validation")
 # CSVファイルからデータを読み込む
-train_df = pd.read_csv('train.csv')
-valid_df = pd.read_csv('validation.csv')
+train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -81,9 +79,10 @@ accuracy = metrics_dict["accuracy"]
 precision = metrics_dict["precision"]
 recall = metrics_dict["recall"]
 
-print("Validation Accuracy:", accuracy)
-print("Validation Precision:", precision)
-print("Validation Recall:", recall)
+print("■RandomForest")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 
 """### （参考） XGBoost"""
 
@@ -96,16 +95,6 @@ from typing import Tuple
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-def compute_accuracy(
-    eval_pred: Tuple[np.ndarray, np.ndarray]
-) -> dict[str, float]:
-    """予測ラベルと正解ラベルから正解率を計算"""
-    predictions, labels = eval_pred
-    # predictionsは各ラベルについてのスコア
-    # 最もスコアの高いインデックスを予測ラベルとする
-    predictions = np.argmax(predictions, axis=1)
-    return {"accuracy": (predictions == labels).mean()}
-
 # データセットの読み込み
 # train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
 # valid_dataset = load_dataset("llm-book/wrime-sentiment", split="validation")
@@ -114,8 +103,8 @@ def compute_accuracy(
 
 # # ローカルファイルから読み込み
 # CSVファイルからデータを読み込む
-train_df = pd.read_csv('train.csv')
-valid_df = pd.read_csv('validation.csv')
+train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -154,9 +143,15 @@ clf.fit(X_train, train_labels)
 valid_predictions = clf.predict_proba(X_valid)
 
 # 正解率の計算
-accuracy_dict = compute_accuracy((valid_predictions, valid_labels))
-accuracy = accuracy_dict["accuracy"]
-print("Validation Accuracy:", accuracy)
+metrics_dict = compute_metrics((valid_predictions, valid_labels))
+accuracy = metrics_dict["accuracy"]
+precision = metrics_dict["precision"]
+recall = metrics_dict["recall"]
+
+print("■XGBoost")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 
 """###  （参考）  LightGBM"""
 
@@ -167,15 +162,6 @@ from transformers import AutoTokenizer
 from datasets import load_dataset
 from typing import Tuple
 
-def compute_accuracy(
-    eval_pred: Tuple[np.ndarray, np.ndarray]
-) -> dict[str, float]:
-    """予測ラベルと正解ラベルから正解率を計算"""
-    predictions, labels = eval_pred
-    # predictionsは各ラベルについてのスコア
-    # 最もスコアの高いインデックスを予測ラベルとする
-    predictions = np.argmax(predictions, axis=1)
-    return {"accuracy": (predictions == labels).mean()}
 
 # データセットの読み込み
 # train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
@@ -185,8 +171,8 @@ def compute_accuracy(
 
 # データを読み込む
 # CSVファイルからデータを読み込む
-train_df = pd.read_csv('train.csv')
-valid_df = pd.read_csv('validation.csv')
+train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -221,6 +207,12 @@ clf.fit(X_train, train_labels)
 valid_predictions = clf.predict_proba(X_valid)
 
 # 正解率の計算
-accuracy_dict = compute_accuracy((valid_predictions, valid_labels))
-accuracy = accuracy_dict["accuracy"]
-print("Validation Accuracy:", accuracy)
+metrics_dict = compute_metrics((valid_predictions, valid_labels))
+accuracy = metrics_dict["accuracy"]
+precision = metrics_dict["precision"]
+recall = metrics_dict["recall"]
+
+print("■LightGBM")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
