@@ -14,6 +14,9 @@ import pandas as pd
 plt.rcParams["font.size"] = 12  # 文字サイズを大きくする
 
 def visualize_text_length(dataset: Dataset):
+    # モデル名を指定してトークナイザを読み込む
+    model_name = "cl-tohoku/bert-base-japanese-v3"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     """データセット中のテキストのトークン数の分布をグラフとして描画"""
     # データセット中のテキストの長さを数える
     length_counter = Counter()
@@ -54,7 +57,6 @@ def visualize_labels(dataset):
     plt.xlabel("ラベル")
     plt.ylabel("事例数")
     plt.show()
-
 
 visualize_text_length(train_dataset)
 visualize_text_length(valid_dataset)
