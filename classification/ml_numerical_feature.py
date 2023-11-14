@@ -18,6 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from typing import Tuple
 from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import confusion_matrix
 
 # データを読み込む
 train_data = pd.read_csv('/content/llm-class/dataset/classification/train_num.csv')
@@ -49,7 +50,12 @@ metrics_dict = compute_metrics((y_pred, y_val))
 accuracy = metrics_dict["accuracy"]
 precision = metrics_dict["precision"]
 recall = metrics_dict["recall"]
+# 混合行列の計算
+conf_matrix = confusion_matrix(y_val, y_pred)
 
+# 混合行列の表示
+print("Confusion Matrix:")
+print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
