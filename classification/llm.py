@@ -174,42 +174,17 @@ trainer.train()
 # model.save_pretrained("fine_tuned_model_directory")
 
 # 予測結果の取得
-predictions = trainer.predict(encoded_train_dataset)
+predictions = trainer.predict(encoded_valid_dataset)
 
-# is_correctを初期化
-is_correct = []
-# 正解したケースと誤ったケースの判定
-is_correct = (predictions.predictions.argmax(axis=1) == predictions.label_ids)
-correct_data = encoded_valid_dataset[is_correct]
-incorrect_data = encoded_valid_dataset[~is_correct]
 
-# original_train_dfとencoded_train_datasetを結合
-combined_df = original_train_df.copy()
-combined_df["input_ids"] = [encoded_input["input_ids"] for encoded_input in encoded_train_dataset]
-combined_df["label"] = encoded_train_dataset["labels"]
+# 通常は0番目のラベルに対応する予測値
+predictions_df = pd.DataFrame({
+    'label': valid_dataset["label"],
+    'sentence': valid_dataset["sentence"],
+    'predicted_value': predictions.predictions.flatten()
+})
 
-correct_indices = []
-
-# 正解したデータを抽出
-correct_indices = [i for i, is_correct in enumerate(is_correct) if is_correct]
-correct_data_df = combined_df.iloc[correct_indices]
-
-# 誤ったデータを抽出
-incorrect_indices = [i for i, is_correct in enumerate(is_correct) if not is_correct]
-incorrect_data_df = combined_df.iloc[incorrect_indices]
-
-# 'sentence'と'label'を抽出
-correct_data_df = correct_data_df[["label","sentence"]]
-incorrect_data_df = incorrect_data_df[["label","sentence"]]
-
-# correct_data_df = correct_data_df.reset_index()
-# correct_data_df = correct_data_df.rename(columns={"index": "id"})
-# incorrect_data_df = incorrect_data_df.reset_index()
-# incorrect_data_df = incorrect_data_df.rename(columns={"index": "id"})
-
-# "train_correct.csv"と"train_false.csv"に格納
-correct_data_df.to_csv("/content/llm-class/dataset/classification/train_truecase.csv", index=False)
-incorrect_data_df.to_csv("/content/llm-class/dataset/classification/train_falsecase.csv", index=False)
+predictions_df_2.to_csv("/content/llm-class/dataset/classification/results.csv", index=False)
 
 """# 7 精度検証"""
 
@@ -224,3 +199,11 @@ print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
 
+from sklearn.metrics import confusion_matrix
+
+# is_correctを初期化
+is_correct = (predictions.predictions.argmax(axis=1) == predictions.label_ids)
+# 混合行列の計算
+cm = confusion_matrix(predictions.label_ids, predictions.predictions.argmax(axis=1))
+
+print(cm)
