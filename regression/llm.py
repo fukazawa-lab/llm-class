@@ -24,7 +24,8 @@ from datasets import load_dataset
 import pandas as pd
 from typing import Union
 from transformers import BatchEncoding
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, r2_score, mean_squared_error, mean_absolute_error
 
 # 乱数シードを42に固定
 set_seed(42)
@@ -42,11 +43,32 @@ print("乱数シード設定完了")
 # 学習データからN個のデータだけを抽出
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
+# # CSVファイルからデータを読み込む
+# original_train_df = pd.read_csv('/content/llm-class/dataset/regression/train.csv')
+# valid_df = pd.read_csv('/content/llm-class/dataset/regression/validation.csv')
+# train_dataset = Dataset.from_pandas(original_train_df)
+# valid_dataset = Dataset.from_pandas(valid_df)
+
+
+from sklearn.preprocessing import MinMaxScaler
+
 # CSVファイルからデータを読み込む
 original_train_df = pd.read_csv('/content/llm-class/dataset/regression/train.csv')
 valid_df = pd.read_csv('/content/llm-class/dataset/regression/validation.csv')
+
+# ラベルの正規化用にMinMaxScalerを作成
+scaler = MinMaxScaler()
+
+# trainデータのラベルを正規化
+original_train_df['label'] = scaler.fit_transform(original_train_df[['label']])
+
+# validデータのラベルを正規化
+valid_df['label'] = scaler.transform(valid_df[['label']])
+
+# 正規化後のデータをDatasetに変換
 train_dataset = Dataset.from_pandas(original_train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
+
 
 # pprintで見やすく表示する
 pprint(train_dataset[0])
@@ -108,9 +130,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_labels = 1
 
 model = (AutoModelForSequenceClassification
-    .from_pretrained(model_name, num_labels=num_labels)
+    .from_pretrained(model_name, num_labels=1)
     .to(device))
-
 
 
 """# 6 訓練の実行"""
@@ -124,19 +145,29 @@ training_args = TrainingArguments(
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=5,  # エポック数
+    num_train_epochs=10,  # エポック数
     save_strategy="epoch",  # チェックポイントの保存タイミング
     logging_strategy="epoch",  # ロギングのタイミング
     evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
     load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
-    metric_for_best_model="mse",  # 最良のモデルを決定する評価指標
+    metric_for_best_model="1/mse",  # 最良のモデルを決定する評価指標
     fp16=True,  # 自動混合精度演算の有効化
 )
 
-def compute_mse(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
-    predictions, labels = eval_pred
-    mse = mean_squared_error(labels, predictions)
-    return {"mse": mse}
+def compute_metrics_for_regression(eval_pred):
+    logits, labels = eval_pred
+    labels = labels.reshape(-1, 1)
+    
+    mse = mean_squared_error(labels, logits)
+    mae = mean_absolute_error(labels, logits)
+    r2 = r2_score(labels, logits)
+    single_squared_errors = ((logits - labels).flatten()**2).tolist()
+    
+    # Compute accuracy 
+    # Based on the fact that the rounded score = true score only if |single_squared_errors| < 0.5
+    accuracy = 1/mse
+    
+    return {"mse": mse, "mae": mae, "r2": r2, "1/mse": accuracy}
 
 trainer = Trainer(
     model=model,
@@ -144,37 +175,41 @@ trainer = Trainer(
     eval_dataset=encoded_valid_dataset,
     data_collator=data_collator,
     args=training_args,
-    compute_metrics=compute_mse,
+    compute_metrics=compute_metrics_for_regression,
 )
 trainer.train()
 
-# # # ファインチューニング済みモデルを保存
-# model.save_pretrained("fine_tuned_model_directory")
+latest_eval_metrics = trainer.evaluate()
+print(latest_eval_metrics)
 
-# 予測結果の取得
-predictions = trainer.predict(encoded_train_dataset)
+predictions = trainer.predict(encoded_valid_dataset)
 
-# MSEを初期化
-mse_values = []
-# MSEの計算
-mse_values = mean_squared_error(predictions.predictions, predictions.label_ids)
+# 通常は0番目のラベルに対応する予測値
+predictions_df = pd.DataFrame({
+    'label': valid_dataset["label"],
+    'sentence': valid_dataset["sentence"],
+    'predicted_value': predictions.predictions.flatten()
+})
 
-# original_train_dfとencoded_train_datasetを結合
-combined_df = original_train_df.copy()
-combined_df["input_ids"] = [encoded_input["input_ids"] for encoded_input in encoded_train_dataset]
-combined_df["label"] = encoded_train_dataset["labels"]
+# MinMaxScalerで元のスケールに戻す
+original_label = scaler.inverse_transform(predictions_df[['label']])
+original_predicted_labels = scaler.inverse_transform(predictions_df[['predicted_value']])
 
-# 'sentence'と'label'を抽出
-combined_data_df = combined_df[["label","sentence"]]
+# 通常は0番目のラベルに対応する予測値
+predictions_df_2 = pd.DataFrame({
+    'label': original_label.flatten(),
+    'sentence': valid_dataset["sentence"],
+    'predicted_value': original_predicted_labels.flatten()
+})
 
-# combined_data_dfを保存
-combined_data_df.to_csv("/content/llm-class/dataset/regression/results.csv", index=False)
+# 予測結果をCSVに保存
+predictions_df_2.to_csv("/content/llm-class/dataset/regression/results.csv", index=False)
 
-"""# 7 精度検証"""
+mse_original_scale = mean_squared_error(original_label, original_predicted_labels)
+mae_original_scale = mean_absolute_error(original_label, original_predicted_labels)
+rmse_original_scale = np.sqrt(mse_original_scale)
 
-print("■評価結果")
-# 検証セットでモデルを評価
-eval_metrics = trainer.evaluate(encoded_valid_dataset)
-mse = eval_metrics['eval_mse']
-
-print("Mean Squared Error (MSE):", mse)
+# Display the results
+print("MSE:", mse_original_scale)
+print("MAE:", mae_original_scale)
+print("RMSE:", rmse_original_scale)
