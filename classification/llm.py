@@ -139,7 +139,7 @@ training_args = TrainingArguments(
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=5,  # エポック数
+    num_train_epochs=2,  # エポック数
     save_strategy="epoch",  # チェックポイントの保存タイミング
     logging_strategy="epoch",  # ロギングのタイミング
     evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
@@ -176,15 +176,14 @@ trainer.train()
 # 予測結果の取得
 predictions = trainer.predict(encoded_valid_dataset)
 
-
 # 通常は0番目のラベルに対応する予測値
 predictions_df = pd.DataFrame({
-    'label': valid_dataset["label"],
-    'sentence': valid_dataset["sentence"],
-    'predicted_value': predictions.predictions.flatten()
+    'label': predictions.label_ids,
+    'predicted_label': predictions.predictions.argmax(axis=1),
+    'sentence': valid_dataset["sentence"]
 })
 
-predictions_df_2.to_csv("/content/llm-class/dataset/classification/results.csv", index=False)
+predictions_df.to_csv("/content/llm-class/dataset/classification/results.csv", index=False)
 
 """# 7 精度検証"""
 
