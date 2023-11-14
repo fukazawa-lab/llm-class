@@ -208,8 +208,8 @@ incorrect_data_df = incorrect_data_df[["label","sentence"]]
 # incorrect_data_df = incorrect_data_df.rename(columns={"index": "id"})
 
 # "train_correct.csv"と"train_false.csv"に格納
-correct_data_df.to_csv("/content/llm-class/dataset/train_truecase.csv", index=False)
-incorrect_data_df.to_csv("/content/llm-class/dataset/train_falsecase.csv", index=False)
+correct_data_df.to_csv("/content/llm-class/dataset/classification/train_truecase.csv", index=False)
+incorrect_data_df.to_csv("/content/llm-class/dataset/classification/train_falsecase.csv", index=False)
 
 """# 7 精度検証"""
 
