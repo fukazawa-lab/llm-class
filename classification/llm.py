@@ -111,7 +111,7 @@ labels = [example["label"] for example in train_dataset]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ラベルの数を計算
-num_labels = len(set(labels))
+num_labels = np.max(labels) + 1
 
 label2id = {label: id for id, label in enumerate(range(num_labels))}
 id2label = {id: label for id, label in enumerate(range(num_labels))}
