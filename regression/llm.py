@@ -168,7 +168,7 @@ combined_df["label"] = encoded_train_dataset["labels"]
 combined_data_df = combined_df[["label","sentence"]]
 
 # combined_data_dfを保存
-combined_data_df.to_csv("/content/llm-class/dataset/regression_results.csv", index=False)
+combined_data_df.to_csv("/content/llm-class/dataset/regression/results.csv", index=False)
 
 """# 7 精度検証"""
 
