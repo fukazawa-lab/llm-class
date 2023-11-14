@@ -38,6 +38,9 @@ y_pred = regressor.predict(X_val)
 # 回帰向けのメトリクス計算
 mse = mean_squared_error(y_val, y_pred)
 mae = mean_absolute_error(y_val, y_pred)
+rmse = np.sqrt(mse)
 
+print("■LightGBM Regression")
 print("Mean Squared Error:", mse)
 print("Mean Absolute Error:", mae)
+print("Root Mean Squared Error:", rmse)

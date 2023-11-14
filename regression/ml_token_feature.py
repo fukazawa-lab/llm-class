@@ -56,10 +56,12 @@ valid_predictions_rf = regressor_rf.predict(X_valid)
 # 回帰向けのメトリクス計算
 mse_rf = mean_squared_error(valid_labels, valid_predictions_rf)
 mae_rf = mean_absolute_error(valid_labels, valid_predictions_rf)
+rmse_rf = np.sqrt(mean_squared_error(valid_labels, valid_predictions_rf))
 
 print("■RandomForest Regression")
-print("Mean Squared Error:", mse_rf)
-print("Mean Absolute Error:", mae_rf)
+print("MSE:", mse_rf)
+print("MAE:", mae_rf)
+print("RMSE:", rmse_rf)
 
 """### （参考） XGBoost"""
 
@@ -73,10 +75,12 @@ valid_predictions_xgb = regressor_xgb.predict(X_valid)
 # 回帰向けのメトリクス計算
 mse_xgb = mean_squared_error(valid_labels, valid_predictions_xgb)
 mae_xgb = mean_absolute_error(valid_labels, valid_predictions_xgb)
+rmse_xgb = np.sqrt(mean_squared_error(valid_labels, valid_predictions_xgb))
 
 print("■XGBoost Regression")
-print("Mean Squared Error:", mse_xgb)
-print("Mean Absolute Error:", mae_xgb)
+print("MSE:", mse_xgb)
+print("MAE:", mae_xgb)
+print("RMSE:", rmse_xgb)
 
 """###  （参考）  LightGBM"""
 
@@ -90,7 +94,9 @@ valid_predictions_lgbm = regressor_lgbm.predict(X_valid)
 # 回帰向けのメトリクス計算
 mse_lgbm = mean_squared_error(valid_labels, valid_predictions_lgbm)
 mae_lgbm = mean_absolute_error(valid_labels, valid_predictions_lgbm)
+rmse_lgbm = np.sqrt(mean_squared_error(valid_labels, valid_predictions_lgbm))
 
 print("■LightGBM Regression")
-print("Mean Squared Error:", mse_lgbm)
-print("Mean Absolute Error:", mae_lgbm)
+print("MSE:", mse_lgbm)
+print("MAE:", mae_lgbm)
+print("RMSE:", rmse_lgbm)
