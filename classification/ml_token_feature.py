@@ -17,7 +17,7 @@ from typing import Tuple
 import pandas as pd
 from datasets import load_dataset, Dataset, ClassLabel
 from sklearn.metrics import precision_score, recall_score
-
+from sklearn.metrics import confusion_matrix
 
 # データセットの読み込み
 # train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
@@ -75,11 +75,20 @@ def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> dict[str, float
     return {"accuracy": accuracy, "precision": precision, "recall": recall}
 
 metrics_dict = compute_metrics((valid_predictions, valid_labels))
+
+
+
 accuracy = metrics_dict["accuracy"]
 precision = metrics_dict["precision"]
 recall = metrics_dict["recall"]
 
 print("■RandomForest")
+# 混合行列の表示
+# 混合行列の計算
+conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
+print("Confusion Matrix:")
+print(conf_matrix)
+
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
@@ -149,6 +158,10 @@ precision = metrics_dict["precision"]
 recall = metrics_dict["recall"]
 
 print("■XGBoost")
+# 混合行列の計算
+conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
+print("Confusion Matrix:")
+print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
@@ -213,6 +226,11 @@ precision = metrics_dict["precision"]
 recall = metrics_dict["recall"]
 
 print("■LightGBM")
+# 混合行列の計算
+# 混合行列の計算
+conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
+print("Confusion Matrix:")
+print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
