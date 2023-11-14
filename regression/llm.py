@@ -140,8 +140,8 @@ from transformers import TrainingArguments
 
 training_args = TrainingArguments(
     output_dir="output_wrime",  # 結果の保存フォルダ
-    per_device_train_batch_size=32,  # 訓練時のバッチサイズ
-    per_device_eval_batch_size=32,  # 評価時のバッチサイズ
+    per_device_train_batch_size=8,  # 訓練時のバッチサイズ
+    per_device_eval_batch_size=8,  # 評価時のバッチサイズ
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
