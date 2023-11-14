@@ -200,8 +200,6 @@ print("Recall:", recall)
 
 from sklearn.metrics import confusion_matrix
 
-# is_correctを初期化
-is_correct = (predictions.predictions.argmax(axis=1) == predictions.label_ids)
 # 混合行列の計算
 cm = confusion_matrix(predictions.label_ids, predictions.predictions.argmax(axis=1))
 
