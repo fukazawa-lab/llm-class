@@ -28,8 +28,8 @@ from typing import Tuple
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 
 # CSVファイルからデータを読み込む
-train_df = pd.read_csv('/content/llm-class/dataset/classification/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/classification/validation.csv')
+train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
