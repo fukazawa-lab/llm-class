@@ -8,27 +8,30 @@ Original file is located at
 
 # トークンを特徴量にした機械学習による文書分類
 """
+from sklearn.metrics import precision_score, recall_score
 
 import numpy as np
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier  # Random Forestのクラス
 from transformers import AutoTokenizer
 from typing import Tuple
-import pandas as pd
+from lightgbm import LGBMClassifier  # LightGBMのクラス
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier  # Random Forestのクラス
 from datasets import load_dataset, Dataset, ClassLabel
-from sklearn.metrics import precision_score, recall_score
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_score, recall_score, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+from scipy.sparse import csr_matrix, vstack
+from transformers import AutoTokenizer
+from datasets import load_dataset
+from typing import Tuple
 
-# データセットの読み込み
-# train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
-# valid_dataset = load_dataset("llm-book/wrime-sentiment", split="validation")
-# train_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="train")
-# valid_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="validation")
 # CSVファイルからデータを読み込む
 train_df = pd.read_csv('/content/llm-class/dataset/classification/train.csv')
 valid_df = pd.read_csv('/content/llm-class/dataset/classification/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
+
 
 # データセットを結合
 all_sentences = train_dataset['sentence'] + valid_dataset['sentence']
@@ -49,184 +52,153 @@ X_train = X[:num_train_samples]
 X_valid = X[num_train_samples:]
 train_labels = all_labels[:num_train_samples]
 valid_labels = all_labels[num_train_samples:]
+
+# Create a LabelEncoder and fit it to your class labels
+label_encoder = LabelEncoder()
+all_labels_encoded = label_encoder.fit_transform(all_labels)
+encoded_labels_train = label_encoder.transform(train_labels)
+encoded_labels_valid = label_encoder.transform(valid_labels)
+
+
+# all_labels_encodedに含まれていて、encoded_labels_trainに含まれていないラベルを見つける
+missing_labels = set(all_labels_encoded) - set(encoded_labels_train)
+
+# encoded_labels_trainの末尾に不足しているラベルを追加
+for label in missing_labels:
+    encoded_labels_train = np.append(encoded_labels_train, label)
+    # 不足しているラベルに対応する特徴量を求め、X_trainに追加
+    missing_label_indices = np.where(all_labels_encoded == label)[0]
+    missing_label_features = csr_matrix.mean(X[missing_label_indices], axis=0)
+    X_train = vstack([X_train, missing_label_features])
 
 # Random Forestモデルの訓練
 clf = RandomForestClassifier()
-clf.fit(X_train, train_labels)
+clf.fit(X_train, encoded_labels_train)
 
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
 
-# 正解率の計算
+# 確率の最も高いクラスを取得
+predicted_labels = np.argmax(valid_predictions, axis=1)
 
-def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
-    predictions, labels = eval_pred
-    predictions = np.argmax(predictions, axis=1)
+# LabelEncoderを使用して予測値を元のクラスラベルに逆変換
+original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 
-    # Calculate Precision
-    precision = precision_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
-
-    # Calculate Recall
-    recall = recall_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
-
-    # Calculate Accuracy
-    accuracy = (predictions == labels).mean()
-
-    return {"accuracy": accuracy, "precision": precision, "recall": recall}
-
-metrics_dict = compute_metrics((valid_predictions, valid_labels))
-
-
-
-accuracy = metrics_dict["accuracy"]
-precision = metrics_dict["precision"]
-recall = metrics_dict["recall"]
+# 正解率、Precision、Recallの計算
+conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
+accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
+precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
+recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
 
 print("■RandomForest")
-# 混合行列の表示
-# 混合行列の計算
-conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
-print("Confusion Matrix:")
-print(conf_matrix)
-
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
+
+# 予測結果をCSVに出力
+predictions_df  = pd.DataFrame({
+    'label': valid_labels,
+    'predicted_label': original_valid_predictions,
+    'sentence': valid_dataset['sentence']
+})
+predictions_df.to_csv('/content/llm-class/results/classification/result_rf.csv', index=False)
+
+# 実際のラベルと予測されたラベルから混合行列を計算
+conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
+
+# ユニークなラベルのリストを取得
+unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_df['predicted_label'].unique()))
+
+# 混合行列をCSVファイルとして保存
+conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_rf.csv')
+
+
 
 """### （参考） XGBoost"""
 
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from xgboost import XGBClassifier
-from transformers import AutoTokenizer
-from datasets import load_dataset
-from typing import Tuple
-import pandas as pd
-from datasets import Dataset, DatasetDict
-
-# データセットの読み込み
-# train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
-# valid_dataset = load_dataset("llm-book/wrime-sentiment", split="validation")
-# train_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="train")
-# valid_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="validation")
-
-# # ローカルファイルから読み込み
-# CSVファイルからデータを読み込む
-train_df = pd.read_csv('/content/llm-class/dataset/classification/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/classification/validation.csv')
-train_dataset = Dataset.from_pandas(train_df)
-valid_dataset = Dataset.from_pandas(valid_df)
-
-# train_dataset = load_dataset('csv', data_files='train.csv', header=0)
-# valid_dataset =load_dataset('csv', data_files='validation.csv',header=0)
-
-
-
-# データセットを結合
-all_sentences = train_dataset['sentence'] + valid_dataset['sentence']
-all_labels = train_dataset['label'] + valid_dataset['label']
-
-# Tokenizerのロード
-tokenizer = AutoTokenizer.from_pretrained("cl-tohoku/bert-base-japanese-v3")
-
-# トークナイズと特徴量化
-tokenized_sentences = [tokenizer.tokenize(sentence) for sentence in all_sentences]
-tokenized_sentences = [' '.join(tokens) for tokens in tokenized_sentences]
-
-# 特徴量の作成
-vectorizer = TfidfVectorizer(max_features=10000, stop_words="english")
-X = vectorizer.fit_transform(tokenized_sentences)
-
-# トレーニングデータとバリデーションデータの分割
-num_train_samples = len(train_dataset)
-X_train = X[:num_train_samples]
-X_valid = X[num_train_samples:]
-train_labels = all_labels[:num_train_samples]
-valid_labels = all_labels[num_train_samples:]
-
 # XGBoostモデルの訓練
 clf = XGBClassifier()
-clf.fit(X_train, train_labels)
+clf.fit(X_train, encoded_labels_train)
 
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
 
-# 正解率の計算
-metrics_dict = compute_metrics((valid_predictions, valid_labels))
-accuracy = metrics_dict["accuracy"]
-precision = metrics_dict["precision"]
-recall = metrics_dict["recall"]
+# 確率の最も高いクラスを取得
+predicted_labels = np.argmax(valid_predictions, axis=1)
+
+# LabelEncoderを使用して予測値を元のクラスラベルに逆変換
+original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
+
+# 正解率、Precision、Recallの計算
+conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
+accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
+precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
+recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
 
 print("■XGBoost")
-# 混合行列の計算
-conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
-print("Confusion Matrix:")
-print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
+
+# 予測結果をCSVに出力
+predictions_df  = pd.DataFrame({
+    'label': valid_labels,
+    'predicted_label': original_valid_predictions,
+    'sentence': valid_dataset['sentence']
+})
+predictions_df.to_csv('/content/llm-class/results/classification/result_xgb.csv', index=False)
+
+# 実際のラベルと予測されたラベルから混合行列を計算
+conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
+
+# ユニークなラベルのリストを取得
+unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_df['predicted_label'].unique()))
+
+# 混合行列をCSVファイルとして保存
+conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_xgb.csv')
+
+
 
 """###  （参考）  LightGBM"""
 
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from lightgbm import LGBMClassifier  # LightGBMのクラス
-from transformers import AutoTokenizer
-from datasets import load_dataset
-from typing import Tuple
-
-
-# データセットの読み込み
-# train_dataset = load_dataset("llm-book/wrime-sentiment", split="train")
-# valid_dataset = load_dataset("llm-book/wrime-sentiment", split="validation")
-# train_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="train")
-# valid_dataset = load_dataset("shunk031/JGLUE", name="MARC-ja",split="validation")
-
-# データを読み込む
-# CSVファイルからデータを読み込む
-train_df = pd.read_csv('/content/llm-class/dataset/classification/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/classification/validation.csv')
-train_dataset = Dataset.from_pandas(train_df)
-valid_dataset = Dataset.from_pandas(valid_df)
-
-
-# データセットを結合
-all_sentences = train_dataset['sentence'] + valid_dataset['sentence']
-all_labels = train_dataset['label'] + valid_dataset['label']
-
-# Tokenizerのロード
-tokenizer = AutoTokenizer.from_pretrained("cl-tohoku/bert-base-japanese-v3")
-
-# トークナイズと特徴量化
-tokenized_sentences = [tokenizer.tokenize(sentence) for sentence in all_sentences]
-tokenized_sentences = [' '.join(tokens) for tokens in tokenized_sentences]
-
-# 特徴量の作成
-vectorizer = TfidfVectorizer(max_features=10000, stop_words="english")
-X = vectorizer.fit_transform(tokenized_sentences)
-
-# トレーニングデータとバリデーションデータの分割
-num_train_samples = len(train_dataset)
-X_train = X[:num_train_samples]
-X_valid = X[num_train_samples:]
-train_labels = all_labels[:num_train_samples]
-valid_labels = all_labels[num_train_samples:]
-
+# ハイパーパラメータの設定
+params = {
+    'objective': 'multiclass',  # 分類の場合は'multiclass'を指定
+    'num_leaves': 31,
+    'learning_rate': 0.05,
+    'min_data_in_leaf': 50,
+    'max_depth': -1,
+    'bagging_fraction': 0.8,
+    'num_class': len(np.unique(encoded_labels_train)),  # クラスの数
+    'boosting_type': 'gbdt',  # Gradient Boosting Decision Tree
+    'metric': 'multi_logloss',  # ロジスティック損失を使用
+    'min_split_gain': 0.1,  # これを調整してみてください
+    'feature_fraction': 0.8,  # 特徴のサブサンプリングを試してみてください
+    'verbose': -1  # 警告メッセージを非表示にする
+}
 # LightGBMモデルの訓練
-clf = LGBMClassifier()
-clf.fit(X_train, train_labels)
+clf = LGBMClassifier(**params)
+clf.fit(X_train, encoded_labels_train)
 
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
 
-# 正解率の計算
-metrics_dict = compute_metrics((valid_predictions, valid_labels))
-accuracy = metrics_dict["accuracy"]
-precision = metrics_dict["precision"]
-recall = metrics_dict["recall"]
+
+# 確率の最も高いクラスを取得
+predicted_labels = np.argmax(valid_predictions, axis=1)
+
+# LabelEncoderを使用して予測値を元のクラスラベルに逆変換
+original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
+
+# 正解率、Precision、Recallの計算
+conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
+accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
+precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
+recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
 
 print("■LightGBM")
-# 混合行列の計算
 # 混合行列の計算
 conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
 print("Confusion Matrix:")
@@ -234,3 +206,24 @@ print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
+
+
+
+# 予測結果をCSVに出力
+predictions_df  = pd.DataFrame({
+    'label': valid_labels,
+    'predicted_label': original_valid_predictions,
+    'sentence': valid_dataset['sentence']
+})
+predictions_df.to_csv('/content/llm-class/results/classification/result_lgb.csv', index=False)
+
+# 実際のラベルと予測されたラベルから混合行列を計算
+conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
+
+# ユニークなラベルのリストを取得
+unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_df['predicted_label'].unique()))
+
+# 混合行列をCSVファイルとして保存
+conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lgb.csv')
+
