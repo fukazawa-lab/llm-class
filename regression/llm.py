@@ -44,8 +44,8 @@ print("乱数シード設定完了")
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
 # # CSVファイルからデータを読み込む
-# original_train_df = pd.read_csv('/content/llm-class/dataset/regression/train.csv')
-# valid_df = pd.read_csv('/content/llm-class/dataset/regression/validation.csv')
+# original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+# valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 # train_dataset = Dataset.from_pandas(original_train_df)
 # valid_dataset = Dataset.from_pandas(valid_df)
 
