@@ -200,9 +200,6 @@ recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, a
 
 print("■LightGBM")
 # 混合行列の計算
-conf_matrix = confusion_matrix(valid_labels, np.argmax(valid_predictions, axis=1))
-print("Confusion Matrix:")
-print(conf_matrix)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
