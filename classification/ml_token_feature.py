@@ -173,10 +173,8 @@ clf.fit(X_train, encoded_labels_train)
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
 
-print(valid_predictions)
 # 確率の最も高いクラスを取得
 predicted_labels = np.argmax(valid_predictions, axis=1)
-print(predicted_labels)
 
 # LabelEncoderを使用して予測値を元のクラスラベルに逆変換
 original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
