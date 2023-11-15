@@ -21,8 +21,8 @@ from datasets import load_dataset, Dataset
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # データセットの読み込み
-train_df = pd.read_csv('/content/llm-class/dataset/regression/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/regression/validation.csv')
+train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
