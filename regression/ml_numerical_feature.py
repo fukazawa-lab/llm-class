@@ -19,8 +19,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error  # 回帰の
 from typing import Tuple
 
 # データを読み込む
-train_data = pd.read_csv('/content/llm-class/dataset/regression/train_num.csv')
-validation_data = pd.read_csv('/content/llm-class/dataset/regression/validation_num.csv')
+train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
+validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
 
 # 説明変数と目的変数を分離する
 X_train = train_data.drop(columns=['target'])
