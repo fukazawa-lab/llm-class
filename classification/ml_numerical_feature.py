@@ -11,18 +11,30 @@ Original file is located at
 ### 数値特徴量
 """
 
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-from typing import Tuple
 from sklearn.metrics import precision_score, recall_score
-from sklearn.metrics import confusion_matrix
+
+import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import AutoTokenizer
+from typing import Tuple
+from lightgbm import LGBMClassifier  # LightGBMのクラス
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier  # Random Forestのクラス
+from datasets import load_dataset, Dataset, ClassLabel
+from sklearn.metrics import precision_score, recall_score, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+from scipy.sparse import csr_matrix, vstack
+from transformers import AutoTokenizer
+from datasets import load_dataset
+from typing import Tuple
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 
 # データを読み込む
 train_data = pd.read_csv('/content/llm-class/dataset/classification/train_num.csv')
 validation_data = pd.read_csv('/content/llm-class/dataset/classification/validation_num.csv')
+
+all_labels = train_data['target'] + validation_data['target']
 
 # 説明変数と目的変数を分離する
 X_train = train_data.drop(columns=['target'])
@@ -30,33 +42,64 @@ y_train = train_data['target']
 X_val = validation_data.drop(columns=['target'])
 y_val = validation_data['target']
 
+# Create a LabelEncoder and fit it to your class labels
+label_encoder = LabelEncoder()
+all_labels_encoded = label_encoder.fit_transform(all_labels)
+encoded_labels_train = label_encoder.transform(y_train)
+encoded_labels_valid = label_encoder.transform(y_val)
+
+
+# all_labels_encodedに含まれていて、encoded_labels_trainに含まれていないラベルを見つける
+missing_labels = set(all_labels_encoded) - set(encoded_labels_train)
+
+# encoded_labels_trainの末尾に不足しているラベルを追加
+for label in missing_labels:
+    encoded_labels_train = np.append(encoded_labels_train, label)
+    # 不足しているラベルに対応する特徴量を求め、X_trainに追加
+    missing_label_indices = np.where(all_labels_encoded == label)[0]
+    missing_label_features = X_train.mean(axis=0)
+    X_train = vstack([X_train, missing_label_features])
+
+
 # モデルを訓練する
 clf = RandomForestClassifier(random_state=42)
-clf.fit(X_train, y_train)
+clf.fit(X_train, encoded_labels_train )
 
 # バリデーションデータで予測を行う
-y_pred = clf.predict(X_val)
+valid_predictions = clf.predict_proba(X_val)
+
+# 確率の最も高いクラスを取得
+predicted_labels = np.argmax(valid_predictions, axis=1)
+
+# LabelEncoderを使用して予測値を元のクラスラベルに逆変換
+original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 
 
-def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
-    predictions, labels = eval_pred
-    predictions = np.sign(predictions)
-    precision = precision_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
-    recall = recall_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
-    accuracy = (predictions == labels).mean()
-    return {"accuracy": accuracy, "precision": precision, "recall": recall}
+# 予測結果をCSVに出力
+predictions_df = pd.DataFrame({
+    'label': y_val,
+    'predicted_label': original_valid_predictions,
+    **validation_data.drop(columns=['target']).to_dict('series')  # 'target'以外のすべてのカラムを含める
+})
+predictions_df.to_csv('/content/llm-class/results/classification/result_num.csv', index=False)
 
-metrics_dict = compute_metrics((y_pred, y_val))
-accuracy = metrics_dict["accuracy"]
-precision = metrics_dict["precision"]
-recall = metrics_dict["recall"]
-# 混合行列の計算
-conf_matrix = confusion_matrix(y_val, y_pred)
+# 実際のラベルと予測されたラベルから混合行列を計算
+conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
 
-# 混合行列の表示
-print("Confusion Matrix:")
-print(conf_matrix)
+# ユニークなラベルのリストを取得
+unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_df['predicted_label'].unique()))
+
+# 混合行列をCSVファイルとして保存
+conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_num.csv')
+
+# Accuracy、Precision、Recallの計算
+accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+
+# 結果を表示
+print("■RandomForest")
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
-
