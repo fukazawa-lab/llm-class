@@ -25,6 +25,7 @@ from scipy.sparse import csr_matrix, vstack
 from transformers import AutoTokenizer
 from datasets import load_dataset
 from typing import Tuple
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 
 # CSVファイルからデータを読み込む
 train_df = pd.read_csv('/content/llm-class/dataset/classification/train.csv')
@@ -84,17 +85,6 @@ predicted_labels = np.argmax(valid_predictions, axis=1)
 # LabelEncoderを使用して予測値を元のクラスラベルに逆変換
 original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 
-# 正解率、Precision、Recallの計算
-conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
-accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
-precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-
-print("■RandomForest")
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
-
 # 予測結果をCSVに出力
 predictions_df  = pd.DataFrame({
     'label': valid_labels,
@@ -113,6 +103,16 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
 conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_rf.csv')
 
+# Accuracy、Precision、Recallの計算
+accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+
+# 結果を表示
+print("■RandomForest")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 
 
 """### （参考） XGBoost"""
@@ -130,16 +130,6 @@ predicted_labels = np.argmax(valid_predictions, axis=1)
 # LabelEncoderを使用して予測値を元のクラスラベルに逆変換
 original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 
-# 正解率、Precision、Recallの計算
-conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
-accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
-precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-
-print("■XGBoost")
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
 
 # 予測結果をCSVに出力
 predictions_df  = pd.DataFrame({
@@ -159,6 +149,16 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
 conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_xgb.csv')
 
+# Accuracy、Precision、Recallの計算
+accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+
+# 結果を表示
+print("■XGBoost")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 
 
 """###  （参考）  LightGBM"""
@@ -192,19 +192,6 @@ predicted_labels = np.argmax(valid_predictions, axis=1)
 # LabelEncoderを使用して予測値を元のクラスラベルに逆変換
 original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 
-# 正解率、Precision、Recallの計算
-conf_matrix = confusion_matrix(label_encoder.transform(valid_labels), predicted_labels)
-accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
-precision = precision_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-recall = recall_score(label_encoder.transform(valid_labels), predicted_labels, average='weighted')
-
-print("■LightGBM")
-# 混合行列の計算
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
-
-
 
 # 予測結果をCSVに出力
 predictions_df  = pd.DataFrame({
@@ -223,4 +210,15 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
 conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lgb.csv')
+
+# Accuracy、Precision、Recallの計算
+accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+
+# 結果を表示
+print("■LightGBM")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
 
