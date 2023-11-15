@@ -31,8 +31,8 @@ from typing import Tuple
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 
 # データを読み込む
-train_data = pd.read_csv('/content/llm-class/dataset/classification/train_num.csv')
-validation_data = pd.read_csv('/content/llm-class/dataset/classification/validation_num.csv')
+train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
+validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
 
 all_labels = train_data['target'] + validation_data['target']
 
