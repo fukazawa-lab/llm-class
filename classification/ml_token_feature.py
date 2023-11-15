@@ -69,7 +69,7 @@ for label in missing_labels:
     encoded_labels_train = np.append(encoded_labels_train, label)
     # 不足しているラベルに対応する特徴量を求め、X_trainに追加
     missing_label_indices = np.where(all_labels_encoded == label)[0]
-    missing_label_features = csr_matrix.mean(X[missing_label_indices], axis=0)
+    missing_label_features = csr_matrix.mean(X_train, axis=0)
     X_train = vstack([X_train, missing_label_features])
 
 # Random Forestモデルの訓練
