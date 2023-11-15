@@ -43,8 +43,8 @@ print("乱数シード設定完了")
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
 # CSVファイルからデータを読み込む
-original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+original_train_df = pd.read_csv('/content/llm-class/dataset/train_amazon_review.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation_amazon_review.csv')
 train_dataset = Dataset.from_pandas(original_train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -198,7 +198,7 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lmm.csv')
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_llm.csv')
 
 
 # Accuracy、Precision、Recallの計算
