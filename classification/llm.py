@@ -17,13 +17,14 @@ import numpy as np
 import pandas as pd
 from transformers import Trainer
 from transformers import AutoModelForSequenceClassification
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 from pprint import pprint
 from datasets import Dataset, ClassLabel
 from datasets import load_dataset
 import pandas as pd
 from typing import Union
 from transformers import BatchEncoding
+
 
 # 乱数シードを42に固定
 set_seed(42)
@@ -139,7 +140,7 @@ training_args = TrainingArguments(
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=10,  # エポック数
+    num_train_epochs=2,  # エポック数
     save_strategy="epoch",  # チェックポイントの保存タイミング
     logging_strategy="epoch",  # ロギングのタイミング
     evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
@@ -188,6 +189,17 @@ predictions_df.to_csv("/content/llm-class/results/classification/results_lmm.csv
 """# 7 精度検証"""
 
 print("■評価結果")
+
+# 実際のラベルと予測されたラベルから混合行列を計算
+conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
+
+# ユニークなラベルのリストを取得
+unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_df['predicted_label'].unique()))
+
+# 混合行列をCSVファイルとして保存
+conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
+conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lmm.csv')
+
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
