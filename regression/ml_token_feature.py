@@ -84,8 +84,12 @@ print("RMSE:", rmse_xgb)
 
 """###  （参考）  LightGBM"""
 
-# LightGBMモデルの訓練（回帰）
-regressor_lgbm = LGBMRegressor()
+# ハイパーパラメータの設定
+params = {
+    'verbose': -1  # 警告メッセージを非表示にする
+}
+# LightGBMモデルの訓練
+clf = LGBMClassifier(**params)
 regressor_lgbm.fit(X_train, train_labels)
 
 # バリデーションデータで予測（回帰）
