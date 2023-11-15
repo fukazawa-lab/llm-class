@@ -123,7 +123,6 @@ clf.fit(X_train, encoded_labels_train)
 
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
-
 # 確率の最も高いクラスを取得
 predicted_labels = np.argmax(valid_predictions, axis=1)
 
@@ -165,17 +164,6 @@ print("Recall:", recall)
 
 # ハイパーパラメータの設定
 params = {
-    'objective': 'multiclass',  # 分類の場合は'multiclass'を指定
-    'num_leaves': 31,
-    'learning_rate': 0.05,
-    'min_data_in_leaf': 50,
-    'max_depth': -1,
-    'bagging_fraction': 0.8,
-    'num_class': len(np.unique(encoded_labels_train)),  # クラスの数
-    'boosting_type': 'gbdt',  # Gradient Boosting Decision Tree
-    'metric': 'multi_logloss',  # ロジスティック損失を使用
-    'min_split_gain': 0.1,  # これを調整してみてください
-    'feature_fraction': 0.8,  # 特徴のサブサンプリングを試してみてください
     'verbose': -1  # 警告メッセージを非表示にする
 }
 # LightGBMモデルの訓練
@@ -185,13 +173,13 @@ clf.fit(X_train, encoded_labels_train)
 # バリデーションデータで予測
 valid_predictions = clf.predict_proba(X_valid)
 
-
+print(valid_predictions)
 # 確率の最も高いクラスを取得
 predicted_labels = np.argmax(valid_predictions, axis=1)
+print(predicted_labels)
 
 # LabelEncoderを使用して予測値を元のクラスラベルに逆変換
 original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
-
 
 # 予測結果をCSVに出力
 predictions_df  = pd.DataFrame({
