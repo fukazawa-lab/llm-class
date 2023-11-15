@@ -187,7 +187,6 @@ predictions_df.to_csv("/content/llm-class/results/classification/results_lmm.csv
 
 """# 7 精度検証"""
 
-
 print("■評価結果")
 
 # Accuracy、Precision、Recallの計算
