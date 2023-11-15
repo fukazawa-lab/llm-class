@@ -40,7 +40,17 @@ mse = mean_squared_error(y_val, y_pred)
 mae = mean_absolute_error(y_val, y_pred)
 rmse = np.sqrt(mse)
 
-print("■LightGBM Regression")
+print("■RandomForest Regression")
 print("Mean Squared Error:", mse)
 print("Mean Absolute Error:", mae)
 print("Root Mean Squared Error:", rmse)
+
+# 予測結果のDataFrameを作成
+predictions_df = pd.DataFrame({
+    'label': y_val,
+    'predicted_label': y_pred,
+    **X_val.to_dict('series')
+})
+
+# 予測結果をCSVに保存
+predictions_df.to_csv("/content/llm-class/results/regression/results_num.csv", index=False)
