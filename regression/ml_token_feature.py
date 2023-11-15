@@ -63,6 +63,16 @@ print("MSE:", mse_rf)
 print("MAE:", mae_rf)
 print("RMSE:", rmse_rf)
 
+# 予測結果のDataFrameを作成
+predictions_df_rf = pd.DataFrame({
+    'label': valid_labels,
+    'sentence': valid_dataset['sentence'],
+    'predicted_label': valid_predictions_rf
+})
+
+# 予測結果をCSVに保存
+predictions_df_rf.to_csv("/content/llm-class/results/regression/results_rf.csv", index=False)
+
 """### （参考） XGBoost"""
 
 # XGBoostモデルの訓練（回帰）
@@ -82,14 +92,25 @@ print("MSE:", mse_xgb)
 print("MAE:", mae_xgb)
 print("RMSE:", rmse_xgb)
 
+
+# 予測結果のDataFrameを作成
+predictions_df_rf = pd.DataFrame({
+    'label': valid_labels,
+    'sentence': valid_dataset['sentence'],
+    'predicted_label': valid_predictions_rf
+})
+
+# 予測結果をCSVに保存
+predictions_df_rf.to_csv("/content/llm-class/results/regression/results_xgb.csv", index=False)
+
+
 """###  （参考）  LightGBM"""
 
-# ハイパーパラメータの設定
 params = {
     'verbose': -1  # 警告メッセージを非表示にする
 }
-# LightGBMモデルの訓練
-clf = LGBMClassifier(**params)
+
+regressor_lgbm= LGBMRegressor(**params)
 regressor_lgbm.fit(X_train, train_labels)
 
 # バリデーションデータで予測（回帰）
@@ -104,3 +125,15 @@ print("■LightGBM Regression")
 print("MSE:", mse_lgbm)
 print("MAE:", mae_lgbm)
 print("RMSE:", rmse_lgbm)
+
+# 予測結果のDataFrameを作成
+predictions_df_rf = pd.DataFrame({
+    'label': valid_labels,
+    'sentence': valid_dataset['sentence'],
+    'predicted_label': valid_predictions_rf
+})
+
+# 予測結果をCSVに保存
+predictions_df_rf.to_csv("/content/llm-class/results/regression/results_lgbm.csv", index=False)
+
+
