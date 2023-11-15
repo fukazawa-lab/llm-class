@@ -203,7 +203,7 @@ predictions_df_2 = pd.DataFrame({
 })
 
 # 予測結果をCSVに保存
-predictions_df_2.to_csv("/content/llm-class/dataset/regression/results.csv", index=False)
+predictions_df_2.to_csv("/content/llm-class/results/regression/results_lmm.csv", index=False)
 
 mse_original_scale = mean_squared_error(original_label, original_predicted_labels)
 mae_original_scale = mean_absolute_error(original_label, original_predicted_labels)
