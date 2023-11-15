@@ -187,31 +187,15 @@ predictions_df.to_csv("/content/llm-class/results/classification/results_lmm.csv
 
 """# 7 精度検証"""
 
+
 print("■評価結果")
-# 検証セットでモデルを評価
-eval_metrics = trainer.evaluate(encoded_valid_dataset)
-accuracy = eval_metrics['eval_accuracy']
-precision = eval_metrics['eval_precision']
-recall = eval_metrics['eval_recall']
 
+# Accuracy、Precision、Recallの計算
+accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
 
-from sklearn.metrics import confusion_matrix
-
-# Extract labels and predicted labels
-labels = predictions.label_ids
-predicted_labels = predictions.predictions.argmax(axis=1)
-# Extract the actual class labels from the validation dataset
-actual_labels = valid_dataset['label']
-# Create a mapping from class labels to indices
-label2id = {label: i for i, label in enumerate(sorted(set(actual_labels)))}
-# Create a confusion matrix
-cm = confusion_matrix(labels, predicted_labels)
-# Save the confusion matrix as a CSV file
-cm_df = pd.DataFrame(cm, index=label2id.keys(), columns=label2id.keys())
-cm_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lmm.csv')
-
-print(cm)
+# 結果を表示
 print("Accuracy:", accuracy)
 print("Precision:", precision)
 print("Recall:", recall)
-
