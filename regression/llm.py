@@ -53,8 +53,8 @@ print("乱数シード設定完了")
 from sklearn.preprocessing import MinMaxScaler
 
 # CSVファイルからデータを読み込む
-original_train_df = pd.read_csv('/content/llm-class/dataset/regression/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/regression/validation.csv')
+original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
+valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
 
 # ラベルの正規化用にMinMaxScalerを作成
 scaler = MinMaxScaler()
