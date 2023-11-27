@@ -26,6 +26,7 @@ from typing import Union
 from transformers import BatchEncoding
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.metrics import mean_squared_error, r2_score, mean_squared_error, mean_absolute_error
+from transformers import DataCollatorWithPadding
 
 # 乱数シードを42に固定
 set_seed(42)
@@ -69,23 +70,48 @@ valid_df['label'] = scaler.transform(valid_df[['label']])
 train_dataset = Dataset.from_pandas(original_train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
-
 # pprintで見やすく表示する
 pprint(train_dataset[0])
 
 print("")
 
+
+
 """# 3. トークン化"""
 
 # モデル名を指定してトークナイザを読み込む
-model_name = "cl-tohoku/bert-base-japanese-v3"
+# model_name = "cl-tohoku/bert-base-japanese-v3"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+
+# model_name = "bert-base-uncased"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+model_name = "albert-base-v2"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+# model_name = "distilbert-base-uncased"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+# model_name = "roberta-base"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # トークナイザのクラス名を確認
 print(type(tokenizer).__name__)
 
+# UserID、MovieIDを別れないようにトークンを登録する。
+
+user_tokens = [f"user_{i}" for i in range(1, 101)]
+tokenizer.add_tokens(user_tokens)
+movie_tokens = [f"movie_{i}" for i in range(1, 1001)]
+tokenizer.add_tokens(movie_tokens)
+rating_tokens = [str(round(x, 1)) for x in np.arange(1.0, 5.1, 0.1)]
+tokenizer.add_tokens(rating_tokens)
+
+
 # テキストのトークン化
-tokens = tokenizer.tokenize(train_dataset[0]['sentence'])
+# tokens = tokenizer.tokenize(train_dataset[0]['sentence'])
+tokens =train_dataset[0]['sentence'].split()
 print(tokens)
 
 # データのトークン化
@@ -95,6 +121,10 @@ def preprocess_text_classification(
 ) -> BatchEncoding:
     """文書分類の事例のテキストをトークナイズし、IDに変換"""
     encoded_example = tokenizer(example["sentence"], max_length=512)
+    # 各IDがどのトークンを表すかを表示
+    input_tokens = tokenizer.convert_ids_to_tokens(encoded_example["input_ids"])
+    print("Input Tokens:", input_tokens)
+
     # モデルの入力引数である"labels"をキーとして格納する
     encoded_example["labels"] = float(example["label"])  # ラベルをFloat型に変換
     return encoded_example
@@ -109,6 +139,7 @@ encoded_valid_dataset = valid_dataset.map(
     remove_columns=valid_dataset.column_names,
 )
 
+
 # トークン化の確認
 print(encoded_train_dataset[0])
 
@@ -116,6 +147,7 @@ print(encoded_train_dataset[0])
 
 from transformers import DataCollatorWithPadding
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
 # ミニバッチ結果の確認
 batch_inputs = data_collator(encoded_train_dataset[0:4])
 pprint({name: tensor.size() for name, tensor in batch_inputs.items()})
@@ -145,7 +177,7 @@ training_args = TrainingArguments(
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=5,  # エポック数
+    num_train_epochs=20,  # エポック数
     save_strategy="epoch",  # チェックポイントの保存タイミング
     logging_strategy="epoch",  # ロギングのタイミング
     evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
