@@ -78,31 +78,31 @@ print("")
 """# 3. トークン化"""
 
 # モデル名を指定してトークナイザを読み込む
-# model_name = "cl-tohoku/bert-base-japanese-v3"
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
+model_name = "cl-tohoku/bert-base-japanese-v3"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 
 # model_name = "bert-base-uncased"
 # tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-model_name = "albert-base-v2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+# model_name = "albert-base-v2"
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # トークナイザのクラス名を確認
 print(type(tokenizer).__name__)
 
-# UserID、MovieIDを別れないようにトークンを登録する。
-user_tokens = [f"user_{i}" for i in range(1, 101)]
-tokenizer.add_tokens(user_tokens)
-movie_tokens = [f"movie_{i}" for i in range(1, 1001)]
-tokenizer.add_tokens(movie_tokens)
-rating_tokens = [str(round(x, 1)) for x in np.arange(1.0, 5.1, 0.1)]
-tokenizer.add_tokens(rating_tokens)
+# # UserID、MovieIDを別れないようにトークンを登録する。
+# user_tokens = [f"user_{i}" for i in range(1, 101)]
+# tokenizer.add_tokens(user_tokens)
+# movie_tokens = [f"movie_{i}" for i in range(1, 1001)]
+# tokenizer.add_tokens(movie_tokens)
+# rating_tokens = [str(round(x, 1)) for x in np.arange(1.0, 5.1, 0.1)]
+# tokenizer.add_tokens(rating_tokens)
 
 
 # テキストのトークン化
-# tokens = tokenizer.tokenize(train_dataset[0]['sentence'])
-tokens =train_dataset[0]['sentence'].split()
+tokens = tokenizer.tokenize(train_dataset[0]['sentence'])
+# tokens =train_dataset[0]['sentence'].split()
 print(tokens)
 
 # データのトークン化
@@ -111,10 +111,12 @@ def preprocess_text_classification(
     example: dict[str, str | int]
 ) -> BatchEncoding:
     """文書分類の事例のテキストをトークナイズし、IDに変換"""
+    # print(example["sentence"])
     encoded_example = tokenizer(example["sentence"], max_length=512)
+    # print(encoded_example)
     # 各IDがどのトークンを表すかを表示
     input_tokens = tokenizer.convert_ids_to_tokens(encoded_example["input_ids"])
-    print("Input Tokens:", input_tokens)
+    # print("Input Tokens:", input_tokens)
     # モデルの入力引数である"labels"をキーとして格納する
     encoded_example["labels"] = float(example["label"])  # ラベルをFloat型に変換
     return encoded_example
