@@ -105,8 +105,8 @@ conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matri
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
-precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
-recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
 
 # 結果を表示
 print("■RandomForest")
@@ -150,8 +150,8 @@ conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matri
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
-precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
-recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
 
 # 結果を表示
 print("■XGBoost")
@@ -199,8 +199,8 @@ conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matri
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
-precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
-recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='weighted')
+precision = precision_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
+recall = recall_score(predictions_df['label'], predictions_df['predicted_label'], average='macro')
 
 # 結果を表示
 print("■LightGBM")
