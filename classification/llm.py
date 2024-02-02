@@ -25,6 +25,7 @@ import pandas as pd
 from typing import Union
 from transformers import BatchEncoding
 
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # 乱数シードを42に固定
 set_seed(42)
@@ -140,12 +141,12 @@ training_args = TrainingArguments(
     learning_rate=2e-5,  # 学習率
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=5,  # エポック数
+    num_train_epochs=30,  # エポック数
     save_strategy="epoch",  # チェックポイントの保存タイミング
     logging_strategy="epoch",  # ロギングのタイミング
     evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
     load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
-    metric_for_best_model="accuracy",  # 最良のモデルを決定する評価指標
+    metric_for_best_model="f1",  # 最良のモデルを決定する評価指標
     fp16=True,  # 自動混合精度演算の有効化
 )
 
@@ -158,8 +159,9 @@ def compute_accuracy(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, floa
     accuracy = accuracy_score(labels, predictions)
     precision = precision_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
     recall = recall_score(labels, predictions, average='macro')  # または average='micro' など適切なオプションを選択してください
+    f1 = f1_score(labels, predictions, average='macro')
 
-    return {"accuracy": accuracy, "precision": precision, "recall": recall}
+    return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
 
 trainer = Trainer(
     model=model,
