@@ -10,6 +10,10 @@ Original file is located at
 
 # 1 環境の準備
 """
+
+import os
+os.environ["WANDB_DISABLED"] = "true"  
+
 import torch
 from transformers.trainer_utils import set_seed
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
