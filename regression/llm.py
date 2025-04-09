@@ -218,8 +218,8 @@ predictions = trainer.predict(encoded_valid_dataset)
 
 # 通常は0番目のラベルに対応する予測値
 predictions_df = pd.DataFrame({
-    'label': valid_dataset["label"],
     'sentence': valid_dataset["sentence"],
+    'label': valid_dataset["label"],
     'predicted_value': predictions.predictions.flatten()
 })
 
