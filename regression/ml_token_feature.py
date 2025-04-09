@@ -67,7 +67,7 @@ print("RMSE:", rmse_rf)
 predictions_df_rf = pd.DataFrame({
     'label': valid_labels,
     'sentence': valid_dataset['sentence'],
-    'predicted_label': valid_predictions_rf
+    'predicted_value': valid_predictions_rf
 })
 
 # 予測結果をCSVに保存
@@ -97,7 +97,7 @@ print("RMSE:", rmse_xgb)
 predictions_df_rf = pd.DataFrame({
     'label': valid_labels,
     'sentence': valid_dataset['sentence'],
-    'predicted_label': valid_predictions_rf
+    'predicted_value': valid_predictions_rf
 })
 
 # 予測結果をCSVに保存
@@ -130,7 +130,7 @@ print("RMSE:", rmse_lgbm)
 predictions_df_rf = pd.DataFrame({
     'label': valid_labels,
     'sentence': valid_dataset['sentence'],
-    'predicted_label': valid_predictions_rf
+    'predicted_value': valid_predictions_rf
 })
 
 # 予測結果をCSVに保存
