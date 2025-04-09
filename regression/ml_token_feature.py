@@ -65,8 +65,8 @@ print("RMSE:", rmse_rf)
 
 # 予測結果のDataFrameを作成
 predictions_df_rf = pd.DataFrame({
-    'label': valid_labels,
     'sentence': valid_dataset['sentence'],
+    'label': valid_labels,
     'predicted_value': valid_predictions_rf
 })
 
@@ -95,8 +95,8 @@ print("RMSE:", rmse_xgb)
 
 # 予測結果のDataFrameを作成
 predictions_df_rf = pd.DataFrame({
-    'label': valid_labels,
     'sentence': valid_dataset['sentence'],
+    'label': valid_labels,
     'predicted_value': valid_predictions_rf
 })
 
@@ -128,8 +128,8 @@ print("RMSE:", rmse_lgbm)
 
 # 予測結果のDataFrameを作成
 predictions_df_rf = pd.DataFrame({
-    'label': valid_labels,
     'sentence': valid_dataset['sentence'],
+    'label': valid_labels,
     'predicted_value': valid_predictions_rf
 })
 
