@@ -23,10 +23,10 @@ train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
 validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
 
 # 説明変数と目的変数を分離する
-X_train = train_data.drop(columns=['target'])
-y_train = train_data['target']
-X_val = validation_data.drop(columns=['target'])
-y_val = validation_data['target']
+X_train = train_data.drop(columns=['label'])
+y_train = train_data['label']
+X_val = validation_data.drop(columns=['label'])
+y_val = validation_data['label']
 
 # モデルを訓練する（RandomForestRegressorに変更）
 regressor = RandomForestRegressor(random_state=42)
