@@ -146,10 +146,10 @@ training_args = TrainingArguments(
     lr_scheduler_type="linear",  # 学習率スケジューラの種類
     warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
     num_train_epochs=5,  # エポック数
-    # save_strategy="epoch",  # チェックポイントの保存タイミング
-    # logging_strategy="epoch",  # ロギングのタイミング
-    # # evaluation_strategy="epoch",  # 検証セットによる評価のタイミング
-    # load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
+    save_strategy="epoch",  # チェックポイントの保存タイミング
+    logging_strategy="epoch",  # ロギングのタイミング
+    eval_strategy="epoch",  # 検証セットによる評価のタイミング
+    load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
     metric_for_best_model="f1",  # 最良のモデルを決定する評価指標
     fp16=True,  # 自動混合精度演算の有効化
 )
