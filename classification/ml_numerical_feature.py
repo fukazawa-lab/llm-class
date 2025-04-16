@@ -34,13 +34,13 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
 validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
 
-all_labels = train_data['target'] + validation_data['target']
+all_labels = train_data['target'] + validation_data['label']
 
 # 説明変数と目的変数を分離する
-X_train = train_data.drop(columns=['target'])
-y_train = train_data['target']
-X_val = validation_data.drop(columns=['target'])
-y_val = validation_data['target']
+X_train = train_data.drop(columns=['label'])
+y_train = train_data['label']
+X_val = validation_data.drop(columns=['label'])
+y_val = validation_data['label']
 
 # Create a LabelEncoder and fit it to your class labels
 label_encoder = LabelEncoder()
