@@ -34,7 +34,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
 validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
 
-all_labels = train_data['target'] + validation_data['label']
+all_labels = train_data['label'] + validation_data['label']
 
 # 説明変数と目的変数を分離する
 X_train = train_data.drop(columns=['label'])
@@ -79,7 +79,7 @@ original_valid_predictions = label_encoder.inverse_transform(predicted_labels)
 predictions_df = pd.DataFrame({
     'label': y_val,
     'predicted_label': original_valid_predictions,
-    **validation_data.drop(columns=['target']).to_dict('series')  # 'target'以外のすべてのカラムを含める
+    **validation_data.drop(columns=['label']).to_dict('series')  # 'target'以外のすべてのカラムを含める
 })
 predictions_df.to_csv('/content/llm-class/results/classification/result_num.csv', index=False)
 
