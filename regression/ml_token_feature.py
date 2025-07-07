@@ -94,14 +94,14 @@ print("RMSE:", rmse_xgb)
 
 
 # 予測結果のDataFrameを作成
-predictions_df_rf = pd.DataFrame({
+predictions_df_xgb = pd.DataFrame({
     'sentence': valid_dataset['sentence'],
     'label': valid_labels,
-    'predicted_value': valid_predictions_rf
+    'predicted_value': valid_predictions_xgb
 })
 
 # 予測結果をCSVに保存
-predictions_df_rf.to_csv("/content/llm-class/results/regression/results_xgb.csv", index=False)
+predictions_df_xgb.to_csv("/content/llm-class/results/regression/results_xgb.csv", index=False)
 
 
 """###  （参考）  LightGBM"""
@@ -127,13 +127,13 @@ print("MAE:", mae_lgbm)
 print("RMSE:", rmse_lgbm)
 
 # 予測結果のDataFrameを作成
-predictions_df_rf = pd.DataFrame({
+predictions_df_lgbm = pd.DataFrame({
     'sentence': valid_dataset['sentence'],
     'label': valid_labels,
-    'predicted_value': valid_predictions_rf
+    'predicted_value': valid_predictions_lgbm
 })
 
 # 予測結果をCSVに保存
-predictions_df_rf.to_csv("/content/llm-class/results/regression/results_lgbm.csv", index=False)
+predictions_df_lgbm.to_csv("/content/llm-class/results/regression/results_lgbm.csv", index=False)
 
 
