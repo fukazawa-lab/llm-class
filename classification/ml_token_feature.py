@@ -28,8 +28,8 @@ from typing import Tuple
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
 
 # CSVファイルからデータを読み込む
-train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+train_df = pd.read_csv('llm-class/dataset/train.csv')
+valid_df = pd.read_csv('llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -91,7 +91,7 @@ predictions_df  = pd.DataFrame({
     'predicted_label': original_valid_predictions,
     'sentence': valid_dataset['sentence']
 })
-predictions_df.to_csv('/content/llm-class/results/classification/result_rf.csv', index=False)
+predictions_df.to_csv('llm-class/results/classification/result_rf.csv', index=False)
 
 # 実際のラベルと予測されたラベルから混合行列を計算
 conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
@@ -101,7 +101,7 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_rf.csv')
+conf_matrix_df.to_csv('llm-class/results/classification/confusion_matrix_rf.csv')
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
@@ -136,7 +136,7 @@ predictions_df  = pd.DataFrame({
     'predicted_label': original_valid_predictions,
     'sentence': valid_dataset['sentence']
 })
-predictions_df.to_csv('/content/llm-class/results/classification/result_xgb.csv', index=False)
+predictions_df.to_csv('llm-class/results/classification/result_xgb.csv', index=False)
 
 # 実際のラベルと予測されたラベルから混合行列を計算
 conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
@@ -146,7 +146,7 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_xgb.csv')
+conf_matrix_df.to_csv('llm-class/results/classification/confusion_matrix_xgb.csv')
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])
@@ -185,7 +185,7 @@ predictions_df  = pd.DataFrame({
     'predicted_label': original_valid_predictions,
     'sentence': valid_dataset['sentence']
 })
-predictions_df.to_csv('/content/llm-class/results/classification/result_lgb.csv', index=False)
+predictions_df.to_csv('llm-class/results/classification/result_lgb.csv', index=False)
 
 # 実際のラベルと予測されたラベルから混合行列を計算
 conf_matrix = confusion_matrix(predictions_df['label'], predictions_df['predicted_label'])
@@ -195,7 +195,7 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_lgb.csv')
+conf_matrix_df.to_csv('llm-class/results/classification/confusion_matrix_lgb.csv')
 
 # Accuracy、Precision、Recallの計算
 accuracy = accuracy_score(predictions_df['label'], predictions_df['predicted_label'])

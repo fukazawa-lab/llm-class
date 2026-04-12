@@ -48,8 +48,8 @@ print("乱数シード設定完了")
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
 # CSVファイルからデータを読み込む
-original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+original_train_df = pd.read_csv('llm-class/dataset/train.csv')
+valid_df = pd.read_csv('llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(original_train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -152,6 +152,7 @@ training_args = TrainingArguments(
     load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
     metric_for_best_model="f1",  # 最良のモデルを決定する評価指標
     fp16=True,  # 自動混合精度演算の有効化
+    save_safetensors=False,  # ← これ追加
 )
 
 def compute_accuracy(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
@@ -190,7 +191,7 @@ predictions_df = pd.DataFrame({
     'sentence': valid_dataset["sentence"]
 })
 
-predictions_df.to_csv("/content/llm-class/results/classification/results_lmm.csv", index=False)
+predictions_df.to_csv("llm-class/results/classification/results_lmm.csv", index=False)
 
 """# 7 精度検証"""
 
@@ -204,7 +205,7 @@ unique_labels = sorted(set(predictions_df['label'].unique()) | set(predictions_d
 
 # 混合行列をCSVファイルとして保存
 conf_matrix_df = pd.DataFrame(conf_matrix, columns=unique_labels, index=unique_labels)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_llm.csv')
+conf_matrix_df.to_csv('llm-class/results/classification/confusion_matrix_llm.csv')
 
 
 # Accuracy、Precision、Recallの計算

@@ -6,8 +6,8 @@ from sklearn.preprocessing import LabelEncoder
 from scipy.sparse import csr_matrix, vstack
 
 # データの読み込み
-train_data = pd.read_csv('/content/llm-class/dataset/train_num.csv')
-validation_data = pd.read_csv('/content/llm-class/dataset/validation_num.csv')
+train_data = pd.read_csv('llm-class/dataset/train_num.csv')
+validation_data = pd.read_csv('llm-class/dataset/validation_num.csv')
 
 # 説明変数と目的変数を分離
 X_train_df = train_data.drop(columns=['label'])
@@ -54,12 +54,12 @@ predictions_df = pd.DataFrame({
     'predicted_label': pred_labels_orig,
     **X_val_df.to_dict('series')
 })
-predictions_df.to_csv('/content/llm-class/results/classification/result_num.csv', index=False)
+predictions_df.to_csv('llm-class/results/classification/result_num.csv', index=False)
 
 # 混同行列の保存
 conf_matrix = confusion_matrix(y_val, pred_labels_orig, labels=label_encoder.classes_)
 conf_matrix_df = pd.DataFrame(conf_matrix, index=label_encoder.classes_, columns=label_encoder.classes_)
-conf_matrix_df.to_csv('/content/llm-class/results/classification/confusion_matrix_num.csv')
+conf_matrix_df.to_csv('llm-class/results/classification/confusion_matrix_num.csv')
 
 # 評価指標の出力
 print("■RandomForest")
