@@ -48,8 +48,8 @@ print("乱数シード設定完了")
 # train_dataset = original_train_dataset.shuffle(seed=42).select([i for i in range(1000)])
 
 # # CSVファイルからデータを読み込む
-# original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-# valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+# original_train_df = pd.read_csv('llm-class/dataset/train.csv')
+# valid_df = pd.read_csv('llm-class/dataset/validation.csv')
 # train_dataset = Dataset.from_pandas(original_train_df)
 # valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -57,8 +57,8 @@ print("乱数シード設定完了")
 from sklearn.preprocessing import MinMaxScaler
 
 # CSVファイルからデータを読み込む
-original_train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+original_train_df = pd.read_csv('llm-class/dataset/train.csv')
+valid_df = pd.read_csv('llm-class/dataset/validation.csv')
 
 # ラベルの正規化用にMinMaxScalerを作成
 scaler = MinMaxScaler()
@@ -184,6 +184,7 @@ training_args = TrainingArguments(
     metric_for_best_model="1/mse",  # 最良のモデルを決定する評価指標
     fp16=False,  # 修正: FP16を無効にする
     fp16_full_eval=False,  # 修正: FP16 full evalを無効にする
+    save_safetensors=False,  # ← これ追加
 )
 
 def compute_metrics_for_regression(eval_pred):
@@ -235,7 +236,7 @@ predictions_df_2 = pd.DataFrame({
 })
 
 # 予測結果をCSVに保存
-predictions_df_2.to_csv("/content/llm-class/results/regression/results_lmm.csv", index=False)
+predictions_df_2.to_csv("llm-class/results/regression/results_lmm.csv", index=False)
 
 mse_original_scale = mean_squared_error(original_label, original_predicted_labels)
 mae_original_scale = mean_absolute_error(original_label, original_predicted_labels)

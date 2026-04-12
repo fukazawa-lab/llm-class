@@ -21,8 +21,8 @@ from datasets import load_dataset, Dataset
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # データセットの読み込み
-train_df = pd.read_csv('/content/llm-class/dataset/train.csv')
-valid_df = pd.read_csv('/content/llm-class/dataset/validation.csv')
+train_df = pd.read_csv('llm-class/dataset/train.csv')
+valid_df = pd.read_csv('llm-class/dataset/validation.csv')
 train_dataset = Dataset.from_pandas(train_df)
 valid_dataset = Dataset.from_pandas(valid_df)
 
@@ -71,7 +71,7 @@ predictions_df_rf = pd.DataFrame({
 })
 
 # 予測結果をCSVに保存
-predictions_df_rf.to_csv("/content/llm-class/results/regression/results_rf.csv", index=False)
+predictions_df_rf.to_csv("llm-class/results/regression/results_rf.csv", index=False)
 
 """### （参考） XGBoost"""
 
@@ -101,7 +101,7 @@ predictions_df_xgb = pd.DataFrame({
 })
 
 # 予測結果をCSVに保存
-predictions_df_xgb.to_csv("/content/llm-class/results/regression/results_xgb.csv", index=False)
+predictions_df_xgb.to_csv("llm-class/results/regression/results_xgb.csv", index=False)
 
 
 """###  （参考）  LightGBM"""
@@ -134,6 +134,6 @@ predictions_df_lgbm = pd.DataFrame({
 })
 
 # 予測結果をCSVに保存
-predictions_df_lgbm.to_csv("/content/llm-class/results/regression/results_lgbm.csv", index=False)
+predictions_df_lgbm.to_csv("llm-class/results/regression/results_lgbm.csv", index=False)
 
 
