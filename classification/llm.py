@@ -133,27 +133,41 @@ model = (AutoModelForSequenceClassification
     .from_pretrained(model_name, num_labels=num_labels)
     .to(device))
 
-
-"""# 6 訓練の実行"""
-
 from transformers import TrainingArguments
+import inspect
 
-training_args = TrainingArguments(
-    output_dir="output_wrime",  # 結果の保存フォルダ
-    per_device_train_batch_size=8,  # 訓練時のバッチサイズ
-    per_device_eval_batch_size=8,  # 評価時のバッチサイズ
-    learning_rate=2e-5,  # 学習率
-    lr_scheduler_type="linear",  # 学習率スケジューラの種類
-    warmup_ratio=0.1,  # 学習率のウォームアップの長さを指定
-    num_train_epochs=5,  # エポック数
-    save_strategy="epoch",  # チェックポイントの保存タイミング
-    logging_strategy="epoch",  # ロギングのタイミング
-    eval_strategy="epoch",  # 検証セットによる評価のタイミング
-    load_best_model_at_end=True,  # 訓練後に開発セットで最良のモデルをロード
-    metric_for_best_model="f1",  # 最良のモデルを決定する評価指標
-    fp16=True,  # 自動混合精度演算の有効化
-    save_safetensors=False,  # ← これ追加
-)
+# 利用可能な引数を確認
+params = inspect.signature(TrainingArguments.__init__).parameters
+
+args_dict = {
+    "output_dir": "output_wrime",
+    "per_device_train_batch_size": 8,
+    "per_device_eval_batch_size": 8,
+    "learning_rate": 2e-5,
+    "lr_scheduler_type": "linear",
+    "num_train_epochs": 5,
+    "save_strategy": "epoch",
+    "logging_strategy": "epoch",
+    "load_best_model_at_end": True,
+    "metric_for_best_model": "f1",
+    "fp16": torch.cuda.is_available(),
+}
+
+# バージョンによる引数名の違いに対応
+if "eval_strategy" in params:
+    args_dict["eval_strategy"] = "epoch"
+elif "evaluation_strategy" in params:
+    args_dict["evaluation_strategy"] = "epoch"
+
+# warmup_ratio が利用可能な場合のみ設定
+if "warmup_ratio" in params:
+    args_dict["warmup_ratio"] = 0.1
+
+# 保存形式
+if "save_safetensors" in params:
+    args_dict["save_safetensors"] = False
+
+training_args = TrainingArguments(**args_dict)
 
 def compute_accuracy(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
     predictions, labels = eval_pred
