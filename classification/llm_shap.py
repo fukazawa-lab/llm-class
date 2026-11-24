@@ -96,21 +96,40 @@ def rf_table(shap_samples=100, top_n=25, target_class=1, dependence_top_n=12):
     return _rf_shap(model, x_valid, x_train.columns, 'rf_table', shap_samples, top_n, target_class, dependence_top_n)
 
 
-def rf_text(shap_samples=100, top_n=25, target_class=1, dependence_top_n=12):
-    """文章をTF-IDF化してRFを学習しSHAPを表示。"""
+def rf_text(shap_samples=100, top_n=25, target_class=1,
+            dependence_top_n=12, keep_numbers=True,
+            keep_hiragana=False, keep_symbols=False):
+    """TF-IDF + Random Forest + SHAP"""
+    import re
+    import unicodedata as ud
     from transformers import AutoTokenizer
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.ensemble import RandomForestClassifier
+
     train, valid = _data('train.csv'), _data('validation.csv')
     tok = AutoTokenizer.from_pretrained(MODEL_NAME)
-    vectorizer = TfidfVectorizer(tokenizer=lambda s: [t for t in tok.tokenize(str(s)) if t not in tok.all_special_tokens],
-                                 token_pattern=None, lowercase=False, max_features=1000)
-    x_train = vectorizer.fit_transform(train.sentence.fillna('')).toarray()
-    x_valid = vectorizer.transform(valid.sentence.fillna('')).toarray()
+
+    def tokenize(s):
+        words = tok.tokenize(str(s))
+        def keep(t):
+            w = t.removeprefix("##")
+            return (t not in tok.all_special_tokens and bool(w)
+                    and (keep_numbers or not w.isdecimal())
+                    and (keep_hiragana or not re.fullmatch(r"[\u3040-\u309F]+", w))
+                    and (keep_symbols or not all(ud.category(c)[0] in "PS" for c in w)))
+        return [t for t in words if keep(t)]
+
+    vec = TfidfVectorizer(tokenizer=tokenize, token_pattern=None,
+                          lowercase=False, max_features=1000)
+    x_train = vec.fit_transform(train.sentence.fillna('')).toarray()
+    x_valid = vec.transform(valid.sentence.fillna('')).toarray()
+
     model = RandomForestClassifier(n_estimators=100, random_state=SEED, n_jobs=-1)
     model.fit(x_train, train.label)
     _report(valid.label, model.predict(x_valid), 'rf_text')
-    return _rf_shap(model, x_valid, vectorizer.get_feature_names_out(), 'rf_text', shap_samples, top_n, target_class, dependence_top_n)
+
+    return _rf_shap(model, x_valid, vec.get_feature_names_out(),
+                    'rf_text', shap_samples, top_n, target_class, dependence_top_n)
 
 
 def train_bert(epochs=5, batch_size=8, learning_rate=2e-5):
@@ -172,14 +191,16 @@ def train_bert(epochs=5, batch_size=8, learning_rate=2e-5):
     return trainer
 
 
-def _is_content_token(token, keep_numbers=True):
-    """表示対象を判定。keep_numbers=Falseなら数字を含むトークンを除外。"""
-    token = str(token).strip()
-    if not keep_numbers and any(ch.isdigit() for ch in token):
-        return False
-    return bool(re.search(r'[一-龯々ァ-ヶーA-Za-z0-9]', token))
+def _is_content_token(token, keep_numbers=True,
+                      keep_hiragana=False, keep_symbols=False):
+    """SHAP表示用のトークンフィルタ。"""
+    import unicodedata as ud
 
-
+    w = str(token).strip().removeprefix("##")
+    return (bool(w)
+            and (keep_numbers or not any(c.isdigit() for c in w))
+            and (keep_hiragana or not re.fullmatch(r"[\u3040-\u309F]+", w))
+            and (keep_symbols or not all(ud.category(c)[0] in "PS" for c in w)))
 class _SlowJapaneseTokenizerWithOffsets:
     """SHAP用: Slow日本語BERTのサブワードに文字位置を付与する。"""
     def __init__(self, tokenizer):
@@ -221,74 +242,135 @@ class _SlowJapaneseTokenizerWithOffsets:
         return result
 
 
-def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30, batch_size=8, keep_numbers=True):
-    """保存済みBERTを30文章だけSHAP解析。正負付きの全体平均SHAPを描画。"""
+def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30,
+              batch_size=8, keep_numbers=True,
+              keep_hiragana=False, keep_symbols=False):
+    """日本語BERTのサブワードSHAP解析。出現トークンのみ集計・描画。"""
     import torch
     import shap
     import matplotlib.pyplot as plt
+    import re
+    import unicodedata as ud
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
     if not MODEL_DIR.exists():
         raise FileNotFoundError(f'{MODEL_DIR} がありません。先に train_bert() を実行してください')
+
     valid = _data('validation.csv')
     texts = valid.sentence.fillna('').astype(str).iloc[:samples].tolist()
     if not texts:
         raise ValueError('検証文章がありません')
+
     tokenizer = AutoTokenizer.from_pretrained(str(MODEL_DIR))
     model = AutoModelForSequenceClassification.from_pretrained(str(MODEL_DIR))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device).eval()
+
     if not 0 <= target_class < model.config.num_labels:
         raise ValueError('target_classがクラス範囲外です')
+
+    # BERTによる予測確率
     def predict(batch):
         batch = [str(t) for t in batch]
         outputs = []
         for start in range(0, len(batch), batch_size):
-            enc = tokenizer(batch[start:start+batch_size], padding=True, truncation=True,
-                            max_length=512, return_tensors='pt').to(device)
+            enc = tokenizer(
+                batch[start:start + batch_size],
+                padding=True, truncation=True,
+                max_length=512, return_tensors='pt'
+            ).to(device)
             with torch.no_grad():
-                outputs.append(torch.softmax(model(**enc).logits, dim=-1).cpu().numpy())
+                outputs.append(
+                    torch.softmax(model(**enc).logits, dim=-1).cpu().numpy()
+                )
         return np.concatenate(outputs, axis=0)
-    explainer = shap.Explainer(predict, shap.maskers.Text(_SlowJapaneseTokenizerWithOffsets(tokenizer)),
-                              output_names=[str(i) for i in range(model.config.num_labels)],
-                              algorithm='partition')
+
+    # Slow日本語Tokenizerにoffset_mappingを補完
+    explainer = shap.Explainer(
+        predict,
+        shap.maskers.Text(_SlowJapaneseTokenizerWithOffsets(tokenizer)),
+        output_names=[str(i) for i in range(model.config.num_labels)],
+        algorithm='partition'
+    )
+
     sv = explainer(texts, max_evals=max_evals)
     print('SHAP解析件数:', len(texts), '対象クラス:', target_class)
     shap.plots.text(sv[0, :, target_class])
+
+    # サブワード単位のSHAP値を取得
     rows = []
     for i in range(len(texts)):
-        vals = np.asarray(sv.values[i])  # 文章ごとにトークン数が異なるため個別処理
+        vals = np.asarray(sv.values[i])
         if vals.ndim == 2:
             vals = vals[:, target_class]
+
         for token, value in zip(sv.data[i], vals):
             token = str(token).strip()
             if token and np.isfinite(value):
-                rows.append({'sample_id':i, 'token':token, 'shap_value':float(value)})
-    tokens = pd.DataFrame(rows)
+                rows.append({
+                    'sample_id': i,
+                    'token': token,
+                    'shap_value': float(value)
+                })
+
+    tokens = pd.DataFrame(rows, columns=['sample_id', 'token', 'shap_value'])
     OUT.mkdir(parents=True, exist_ok=True)
     tokens.to_csv(OUT / 'bert_shap_tokens.csv', index=False, encoding='utf-8-sig')
-    tokens = tokens[tokens.token.map(lambda t: _is_content_token(t, keep_numbers))].copy()
-    # 存在したトークンだけを集計。不存在トークンのSHAP=0は作らない。
+
+    # SHAP表示用フィルタ（学習・予測には影響しない）
+    def keep(token):
+        w = str(token).strip().removeprefix('##')
+        return (
+            bool(w)
+            and (keep_numbers or not any(c.isdigit() for c in w))
+            and (keep_hiragana or not re.fullmatch(r'[\u3040-\u309F]+', w))
+            and (keep_symbols or not all(ud.category(c)[0] in 'PS' for c in w))
+        )
+
+    tokens = tokens[tokens.token.map(keep)].copy()
+    if tokens.empty:
+        raise ValueError('フィルタ後のトークンがありません。フィルタ条件を確認してください')
+
+    # 実際に出現したトークンだけで平均を計算
     summary = tokens.groupby('token')['shap_value'].agg(
-        mean_shap='mean', mean_abs_shap=lambda x: x.abs().mean(), count='count'
-    )
-    summary = summary.sort_values('mean_abs_shap', ascending=False)
+        mean_shap='mean',
+        mean_abs_shap=lambda x: x.abs().mean(),
+        count='count'
+    ).sort_values('mean_abs_shap', ascending=False)
+
     summary.to_csv(OUT / 'bert_shap_global.csv', encoding='utf-8-sig')
     print(summary.head(top_n).to_string())
 
-    # 点は実際にそのトークンが出現した文章のSHAP値のみ。
+    # SHAP図：不存在トークンの0点は表示しない
     plot = summary.head(top_n).iloc[::-1]
     fig, ax = plt.subplots(figsize=(11, max(6, 0.35 * len(plot))))
     rng = np.random.default_rng(SEED)
+
     for y, token in enumerate(plot.index):
-        values = tokens.loc[tokens.token == token, 'shap_value'].to_numpy()
-        ax.scatter(values, y + rng.uniform(-0.15, 0.15, len(values)),
-                   c='#FF0051', alpha=0.6, s=25)
-        ax.scatter(values.mean(), y, marker='D', c='black', s=65, zorder=5)
+        values = tokens.loc[
+            tokens.token == token, 'shap_value'
+        ].to_numpy()
+
+        ax.scatter(
+            values,
+            y + rng.uniform(-0.15, 0.15, len(values)),
+            c='#FF0051', alpha=0.6, s=25
+        )
+        ax.scatter(
+            values.mean(), y,
+            marker='D', c='black', s=65, zorder=5
+        )
+
     ax.set_yticks(range(len(plot)), labels=plot.index)
     ax.axvline(0, color='gray', linewidth=1)
-    ax.set(xlabel=f'SHAP value (class {target_class})', ylabel='Subword',
-           title='BERT SHAP: observed subwords only (black diamond = mean)')
+    ax.set(
+        xlabel=f'SHAP value (class {target_class})',
+        ylabel='Subword',
+        title='BERT SHAP: observed subwords only (black diamond = mean)'
+    )
+
     fig.tight_layout()
     fig.savefig(OUT / 'bert_shap_subwords.png', dpi=160, bbox_inches='tight')
     plt.show()
+
     return summary
