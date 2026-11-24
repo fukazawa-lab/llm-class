@@ -33,15 +33,13 @@ def _report(y, pred, filename):
     cm = confusion_matrix(y, pred, labels=labels)
     pd.DataFrame(cm, index=labels, columns=labels).to_csv(OUT / f'{filename}_confusion_matrix.csv')
     pd.DataFrame({'label': np.asarray(y), 'predicted_label': np.asarray(pred)}).to_csv(OUT / f'{filename}_predictions.csv', index=False)
-
-    # 混同行列の表示と画像保存
-    fig, ax = plt.subplots(figsize=(5, 4))
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels).plot(
-        ax=ax, cmap='Blues', values_format='d', colorbar=False)
-    ax.set(title=f'{filename}: Confusion matrix', xlabel='Predicted label', ylabel='True label')
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels).plot(ax=ax, cmap='Blues', values_format='d', colorbar=False)
+    ax.set_title(f'{filename}: Confusion matrix')
     fig.tight_layout()
     fig.savefig(OUT / f'{filename}_confusion_matrix.png', dpi=160, bbox_inches='tight')
     plt.show()
+    plt.close(fig)
 
 
 def _rf_shap(model, x_valid, names, prefix, shap_samples=100, top_n=25, target_class=1, dependence_top_n=12):
@@ -230,15 +228,28 @@ class _SlowJapaneseTokenizerWithOffsets:
         ids = result['input_ids']
         tokens = self.base.convert_ids_to_tokens(ids)
         special = set(self.base.all_special_tokens)
+        import unicodedata
+        # 正規化後の文字位置から原文の文字位置へ戻す。
+        clusters = []
+        for i, c in enumerate(text):
+            if clusters and (unicodedata.category(c).startswith('M') or c in '\uff9e\uff9f'):
+                start, _, prev = clusters[-1]
+                clusters[-1] = (start, i + 1, prev + c)
+            else:
+                clusters.append((i, i + 1, c))
+        pieces = [unicodedata.normalize('NFKC', c) for _, _, c in clusters]
+        normalized = ''.join(pieces)
+        positions = [(a, b) for (a, b, _), piece in zip(clusters, pieces) for _ in piece]
         offsets = []
         cursor = 0
         for token in tokens:
+            if token == self.base.unk_token:
+                raise ValueError('未知語を原文に正確に位置合わせできません')
             if token in special:
                 offsets.append((0, 0))
                 continue
-            surface = token.removeprefix('##')
-            # 日本語BERTのWordPieceは原文の部分文字列と通常一致する。
-            start = text.find(surface, cursor)
+            surface = unicodedata.normalize('NFKC', token.removeprefix('##'))
+            start = normalized.find(surface, cursor)
             if start < 0:
                 # [UNK]・正規化などで一致しない場合、残りの位置を推定する。
                 # 不正確な位置を黙って使わず、原因を明示する。
@@ -247,7 +258,7 @@ class _SlowJapaneseTokenizerWithOffsets:
                     '文字正規化や未知語が原因の可能性があります。'
                 )
             end = start + len(surface)
-            offsets.append((start, end))
+            offsets.append((positions[start][0], positions[end - 1][1]))
             cursor = end
         result['offset_mapping'] = offsets
         return result
@@ -304,25 +315,52 @@ def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30,
         algorithm='partition'
     )
 
-    sv = explainer(texts, max_evals=max_evals)
-    # print('SHAP解析件数:', len(texts), '対象クラス:', target_class)
-    shap.plots.text(sv[0, :, target_class])
-
-    # サブワード単位のSHAP値を取得
-    rows = []
-    for i in range(len(texts)):
-        vals = np.asarray(sv.values[i])
-        if vals.ndim == 2:
-            vals = vals[:, target_class]
-
-        for token, value in zip(sv.data[i], vals):
-            token = str(token).strip()
-            if token and np.isfinite(value):
-                rows.append({
-                    'sample_id': i,
-                    'token': token,
-                    'shap_value': float(value)
-                })
+    # 文章ごとに解析し、位置合わせ等に失敗しても次の文章へ進む。
+    rows, failures = [], []
+    success = 0
+    shown = False
+    candidates = valid.sentence.fillna('').astype(str).tolist()
+    for i, text in enumerate(candidates):
+        if success >= samples:
+            break
+        if not text.strip():
+            failures.append({'sample_id': i, 'reason': '空の文章'})
+            continue
+        try:
+            sv = explainer([text], max_evals=max_evals)
+            vals = np.asarray(sv.values[0])
+            if vals.ndim == 2:
+                vals = vals[:, target_class]
+            sample_rows = [
+                {'sample_id': i, 'token': str(token).strip(), 'shap_value': float(value)}
+                for token, value in zip(sv.data[0], vals)
+                if str(token).strip() and np.isfinite(value)
+            ]
+            if not sample_rows:
+                raise ValueError('有効なSHAP値がありません')
+        except Exception as exc:
+            failures.append({'sample_id': i, 'reason': f'{type(exc).__name__}: {exc}'})
+            # 失敗した文章のキャッシュを次の文章に持ち越さない。
+            explainer = shap.Explainer(
+                predict, shap.maskers.Text(_SlowJapaneseTokenizerWithOffsets(tokenizer)),
+                output_names=[str(j) for j in range(model.config.num_labels)],
+                algorithm='partition')
+            continue
+        rows.extend(sample_rows)
+        success += 1
+        if not shown:
+            try:
+                shap.plots.text(sv[0, :, target_class])
+                shown = True
+            except Exception:
+                pass  # 個別図の描画失敗は集計に影響させない。
+    OUT.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(failures, columns=['sample_id', 'reason']).to_csv(
+        OUT / 'bert_shap_skipped.csv', index=False, encoding='utf-8-sig')
+    print(f'SHAP解析: 成功 {success}/{samples} 件、除外 {len(failures)} 件')
+    if not rows:
+        print('有効なSHAP結果がありません。bert_shap_skipped.csv を確認してください。')
+        return pd.DataFrame(columns=['mean_shap', 'mean_abs_shap', 'count'])
 
     tokens = pd.DataFrame(rows, columns=['sample_id', 'token', 'shap_value'])
     OUT.mkdir(parents=True, exist_ok=True)
@@ -338,9 +376,11 @@ def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30,
             and (keep_symbols or not all(ud.category(c)[0] in 'PS' for c in w))
         )
 
-    tokens = tokens[tokens.token.map(keep)].copy()
-    if tokens.empty:
-        raise ValueError('フィルタ後のトークンがありません。フィルタ条件を確認してください')
+    filtered = tokens[tokens.token.map(keep)].copy()
+    if filtered.empty:
+        print('表示フィルタで全トークンが除外されたため、フィルタなしで表示します。')
+    else:
+        tokens = filtered
 
     # 実際に出現したトークンだけで平均を計算
     summary = tokens.groupby('token')['shap_value'].agg(
