@@ -173,91 +173,122 @@ def train_bert(epochs=5, batch_size=8, learning_rate=2e-5):
 
 
 def _is_content_token(token, keep_numbers=True):
-    pattern = r'[一-龯々ァ-ヶーA-Za-z0-9]' if keep_numbers else r'[一-龯々ァ-ヶーA-Za-z]'
-    return bool(re.search(pattern, str(token).strip()))
+    """表示対象を判定。keep_numbers=Falseなら数字を含むトークンを除外。"""
+    token = str(token).strip()
+    if not keep_numbers and any(ch.isdigit() for ch in token):
+        return False
+    return bool(re.search(r'[一-龯々ァ-ヶーA-Za-z0-9]', token))
 
 
-def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30,
-              batch_size=8, keep_numbers=True):
-    """BERTのSHAP解析：文章別の点（赤）と平均（黒◆）。"""
+class _SlowJapaneseTokenizerWithOffsets:
+    """SHAP用: Slow日本語BERTのサブワードに文字位置を付与する。"""
+    def __init__(self, tokenizer):
+        self.base = tokenizer
+
+    def __getattr__(self, name):
+        return getattr(self.base, name)
+
+    def __call__(self, text, *args, **kwargs):
+        want_offsets = kwargs.pop('return_offsets_mapping', False)
+        result = self.base(text, *args, **kwargs)
+        if not want_offsets:
+            return result
+        if not isinstance(text, str):
+            raise TypeError('SHAPの位置計算は単一文章にのみ対応しています')
+        ids = result['input_ids']
+        tokens = self.base.convert_ids_to_tokens(ids)
+        special = set(self.base.all_special_tokens)
+        offsets = []
+        cursor = 0
+        for token in tokens:
+            if token in special:
+                offsets.append((0, 0))
+                continue
+            surface = token.removeprefix('##')
+            # 日本語BERTのWordPieceは原文の部分文字列と通常一致する。
+            start = text.find(surface, cursor)
+            if start < 0:
+                # [UNK]・正規化などで一致しない場合、残りの位置を推定する。
+                # 不正確な位置を黙って使わず、原因を明示する。
+                raise ValueError(
+                    f'サブワード {token!r} を原文内で位置合わせできません。'
+                    '文字正規化や未知語が原因の可能性があります。'
+                )
+            end = start + len(surface)
+            offsets.append((start, end))
+            cursor = end
+        result['offset_mapping'] = offsets
+        return result
+
+
+def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30, batch_size=8, keep_numbers=True):
+    """保存済みBERTを30文章だけSHAP解析。正負付きの全体平均SHAPを描画。"""
     import torch
     import shap
     import matplotlib.pyplot as plt
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
-    valid = _data("validation.csv")
-    texts = valid.sentence.fillna("").astype(str).iloc[:samples].tolist()
+    if not MODEL_DIR.exists():
+        raise FileNotFoundError(f'{MODEL_DIR} がありません。先に train_bert() を実行してください')
+    valid = _data('validation.csv')
+    texts = valid.sentence.fillna('').astype(str).iloc[:samples].tolist()
     if not texts:
-        raise ValueError("検証文章がありません")
-
+        raise ValueError('検証文章がありません')
     tokenizer = AutoTokenizer.from_pretrained(str(MODEL_DIR))
     model = AutoModelForSequenceClassification.from_pretrained(str(MODEL_DIR))
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device).eval()
-
+    if not 0 <= target_class < model.config.num_labels:
+        raise ValueError('target_classがクラス範囲外です')
     def predict(batch):
+        batch = [str(t) for t in batch]
         outputs = []
-        for i in range(0, len(batch), batch_size):
-            enc = tokenizer(list(batch[i:i+batch_size]), padding=True,
-                            truncation=True, max_length=512,
-                            return_tensors="pt").to(device)
+        for start in range(0, len(batch), batch_size):
+            enc = tokenizer(batch[start:start+batch_size], padding=True, truncation=True,
+                            max_length=512, return_tensors='pt').to(device)
             with torch.no_grad():
-                outputs.append(torch.softmax(model(**enc).logits, -1).cpu().numpy())
-        return np.concatenate(outputs)
-
-    explainer = shap.Explainer(
-        predict, shap.maskers.Text(tokenizer), algorithm="partition"
-    )
+                outputs.append(torch.softmax(model(**enc).logits, dim=-1).cpu().numpy())
+        return np.concatenate(outputs, axis=0)
+    explainer = shap.Explainer(predict, shap.maskers.Text(_SlowJapaneseTokenizerWithOffsets(tokenizer)),
+                              output_names=[str(i) for i in range(model.config.num_labels)],
+                              algorithm='partition')
     sv = explainer(texts, max_evals=max_evals)
+    print('SHAP解析件数:', len(texts), '対象クラス:', target_class)
     shap.plots.text(sv[0, :, target_class])
-
     rows = []
     for i in range(len(texts)):
-        values = np.asarray(sv.values[i])
-        if values.ndim == 2:
-            values = values[:, target_class]
-        for token, value in zip(sv.data[i], values):
+        vals = np.asarray(sv.values[i])  # 文章ごとにトークン数が異なるため個別処理
+        if vals.ndim == 2:
+            vals = vals[:, target_class]
+        for token, value in zip(sv.data[i], vals):
             token = str(token).strip()
             if token and np.isfinite(value):
-                rows.append((i, token, float(value)))
-
-    tokens = pd.DataFrame(rows, columns=["sample_id", "token", "shap_value"])
+                rows.append({'sample_id':i, 'token':token, 'shap_value':float(value)})
+    tokens = pd.DataFrame(rows)
     OUT.mkdir(parents=True, exist_ok=True)
-    tokens.to_csv(OUT / "bert_shap_tokens.csv", index=False, encoding="utf-8-sig")
-
-    tokens = tokens[tokens.token.map(
-        lambda t: _is_content_token(t, keep_numbers)
-    )]
-    matrix = tokens.pivot_table(
-        index="sample_id", columns="token", values="shap_value",
-        aggfunc="sum", fill_value=0
-    ).reindex(range(len(texts)), fill_value=0)
-
-    summary = pd.DataFrame({
-        "global_mean_shap": matrix.mean(),
-        "global_mean_abs_shap": matrix.abs().mean(),
-        "count": tokens.groupby("token").size()
-    })
-    summary = summary.reindex(
-        summary.global_mean_shap.abs().sort_values(ascending=False).index
+    tokens.to_csv(OUT / 'bert_shap_tokens.csv', index=False, encoding='utf-8-sig')
+    tokens = tokens[tokens.token.map(lambda t: _is_content_token(t, keep_numbers))].copy()
+    # 存在したトークンだけを集計。不存在トークンのSHAP=0は作らない。
+    summary = tokens.groupby('token')['shap_value'].agg(
+        mean_shap='mean', mean_abs_shap=lambda x: x.abs().mean(), count='count'
     )
-    summary.to_csv(OUT / "bert_shap_global.csv", encoding="utf-8-sig")
+    summary = summary.sort_values('mean_abs_shap', ascending=False)
+    summary.to_csv(OUT / 'bert_shap_global.csv', encoding='utf-8-sig')
     print(summary.head(top_n).to_string())
 
-    fig, ax = plt.subplots(figsize=(11, max(6, top_n * 0.36)))
-    rng = np.random.default_rng(42)
-
-    for y, token in enumerate(summary.head(top_n).index[::-1]):
-        values = matrix[token].to_numpy()
+    # 点は実際にそのトークンが出現した文章のSHAP値のみ。
+    plot = summary.head(top_n).iloc[::-1]
+    fig, ax = plt.subplots(figsize=(11, max(6, 0.35 * len(plot))))
+    rng = np.random.default_rng(SEED)
+    for y, token in enumerate(plot.index):
+        values = tokens.loc[tokens.token == token, 'shap_value'].to_numpy()
         ax.scatter(values, y + rng.uniform(-0.15, 0.15, len(values)),
-                   c="#FF0051", alpha=0.5, s=24)
-        ax.scatter(values.mean(), y, marker="D", c="black", s=75, zorder=5)
-
-    ax.set_yticks(range(min(top_n, len(summary))))
-    ax.set_yticklabels(summary.head(top_n).index[::-1])
-    ax.axvline(0, color="gray", lw=1)
-    ax.set(xlabel=f"SHAP Value (class {target_class})",
-           ylabel="Token", title="BERT SHAP: Individual Samples and Mean")
-    plt.tight_layout()
+                   c='#FF0051', alpha=0.6, s=25)
+        ax.scatter(values.mean(), y, marker='D', c='black', s=65, zorder=5)
+    ax.set_yticks(range(len(plot)), labels=plot.index)
+    ax.axvline(0, color='gray', linewidth=1)
+    ax.set(xlabel=f'SHAP value (class {target_class})', ylabel='Subword',
+           title='BERT SHAP: observed subwords only (black diamond = mean)')
+    fig.tight_layout()
+    fig.savefig(OUT / 'bert_shap_subwords.png', dpi=160, bbox_inches='tight')
     plt.show()
     return summary
