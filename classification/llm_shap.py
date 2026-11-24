@@ -25,12 +25,23 @@ def _data(name):
 
 
 def _report(y, pred, filename):
-    from sklearn.metrics import classification_report, confusion_matrix
+    from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
     OUT.mkdir(parents=True, exist_ok=True)
     labels = sorted(set(y) | set(pred))
     print(classification_report(y, pred, zero_division=0))
-    pd.DataFrame(confusion_matrix(y, pred, labels=labels), index=labels, columns=labels).to_csv(OUT / f'{filename}_confusion_matrix.csv')
+    cm = confusion_matrix(y, pred, labels=labels)
+    pd.DataFrame(cm, index=labels, columns=labels).to_csv(OUT / f'{filename}_confusion_matrix.csv')
     pd.DataFrame({'label': np.asarray(y), 'predicted_label': np.asarray(pred)}).to_csv(OUT / f'{filename}_predictions.csv', index=False)
+
+    # 混同行列の表示と画像保存
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels).plot(
+        ax=ax, cmap='Blues', values_format='d', colorbar=False)
+    ax.set(title=f'{filename}: Confusion matrix', xlabel='Predicted label', ylabel='True label')
+    fig.tight_layout()
+    fig.savefig(OUT / f'{filename}_confusion_matrix.png', dpi=160, bbox_inches='tight')
+    plt.show()
 
 
 def _rf_shap(model, x_valid, names, prefix, shap_samples=100, top_n=25, target_class=1, dependence_top_n=12):
