@@ -47,10 +47,10 @@ def _rf_shap(model, x_valid, names, prefix, shap_samples=100, top_n=25, target_c
     else:
         raw = np.asarray(raw)
         values = raw[:, :, class_idx] if raw.ndim == 3 else raw
-    print(f'SHAP対象クラス: {model.classes_[class_idx]} / {n}件')
+    # print(f'SHAP対象クラス: {model.classes_[class_idx]} / {n}件')
     shap.summary_plot(values, x, feature_names=list(names), max_display=top_n)
     importance = pd.Series(np.abs(values).mean(axis=0), index=names, name='mean_abs_shap').sort_values(ascending=False)
-    display(importance.head(top_n).to_frame()) if 'display' in globals() else print(importance.head(top_n))
+    # display(importance.head(top_n).to_frame()) if 'display' in globals() else print(importance.head(top_n))
     importance.to_csv(OUT / f'{prefix}_shap_global.csv')
     pd.DataFrame(values, columns=names).to_csv(OUT / f'{prefix}_shap_values.csv', index=False)
     # 添付rf_shap.pyに準じた依存プロット：特徴量値 vs SHAP値
@@ -339,7 +339,7 @@ def bert_shap(samples=30, max_evals=300, target_class=1, top_n=30,
     ).sort_values('mean_abs_shap', ascending=False)
 
     summary.to_csv(OUT / 'bert_shap_global.csv', encoding='utf-8-sig')
-    print(summary.head(top_n).to_string())
+    # print(summary.head(top_n).to_string())
 
     # SHAP図：不存在トークンの0点は表示しない
     plot = summary.head(top_n).iloc[::-1]
